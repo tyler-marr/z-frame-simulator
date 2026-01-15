@@ -145,38 +145,43 @@
 
   // Compile user formula (basic sanitizer + compile)
   function compileFormula(raw){
-    formulaError.textContent = '';
-    if(!raw || !raw.trim()) { state.formulaFn = null; state.formulaExpr = ''; return; }
+  formulaError.textContent = '';
+  if (!raw || !raw.trim()) { state.formulaFn = null; state.formulaExpr = ''; return; }
 
-    // Accept either "angle2 = <expr>" or just "<expr>"
-    let expr = raw.trim();
-    if(/\s*angle2\s*=/.test(expr)) expr = expr.replace(/\s*angle2\s*=','').trim();
-
-    // Replace ^ with ** for exponent; allow common functions, PI, and variables
-    expr = expr.replace(/\^/g, '**');
-
-    // Replace common math function names with Math.xxx
-    const fnNames = ['sin','cos','tan','asin','acos','atan','sqrt','abs','min','max','round','floor','ceil','pow'];
-    fnNames.forEach(fn=>{
-      const re = new RegExp('\b' + fn + '\s*\(', 'g');
-      expr = expr.replace(re, 'Math.' + fn + '(');
-    });
-
-    // Replace PI (case-insensitive)
-    expr = expr.replace(/\bPI\b/gi, 'Math.PI');
-
-    // Ensure variables angle1/angle2/angle3 present with word boundaries
-    expr = expr.replace(/\bangle1\b/g, 'angle1').replace(/\bangle2\b/g,'angle2').replace(/\bangle3\b/g,'angle3');
-
-    // Build a function that accepts angles in degrees and returns degrees
-    const fn = new Function('angle1','angle2','angle3', 'return (' + expr + ');');
-    // Test-run the function with safe numbers to catch runtime errors
-    const test = fn(10, 5, 0);
-    if(typeof test !== 'number' || !isFinite(test)) throw new Error('Formula did not return a finite number.');
-
-    state.formulaFn = fn;
-    state.formulaExpr = raw.trim();
+  // Accept either "angle2 = <expr>" or just "<expr>"
+  let expr = raw.trim();
+  if (/^\s*angle2\s*=/.test(expr)) {
+    expr = expr.replace(/^\s*angle2\s*=/, '').trim();
   }
+
+  // Replace ^ with ** for exponent
+  expr = expr.replace(/\^/g, '**');
+
+  // Replace common math function names with Math.xxx (only function calls, e.g. sin(...))
+  const fnNames = ['sin','cos','tan','asin','acos','atan','sqrt','abs','min','max','round','floor','ceil','pow'];
+  fnNames.forEach(fn => {
+    const re = new RegExp('\\b' + fn + '\\s*\\(', 'g');
+    expr = expr.replace(re, 'Math.' + fn + '(');
+  });
+
+  // Replace PI (case-insensitive)
+  expr = expr.replace(/\bPI\b/gi, 'Math.PI');
+
+  // Ensure variables angle1/angle2/angle3 are used as-is (word boundaries)
+  expr = expr.replace(/\bangle1\b/g, 'angle1')
+             .replace(/\bangle2\b/g, 'angle2')
+             .replace(/\bangle3\b/g, 'angle3');
+
+  // Build a function that accepts angles in degrees and returns degrees
+  const fn = new Function('angle1','angle2','angle3', 'return (' + expr + ');');
+
+  // Test-run the function with safe numbers to catch runtime errors
+  const test = fn(10, 5, 0);
+  if (typeof test !== 'number' || !isFinite(test)) throw new Error('Formula did not return a finite number.');
+
+  state.formulaFn = fn;
+  state.formulaExpr = raw.trim();
+}
 
   // Evaluate formula mapping angle1→angle2 (angles provided in degrees)
   function applyFormulaFromAngle1(){
