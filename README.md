@@ -1,33 +1,23 @@
-# z-frame-simulator
+# Z-frame Wheelchair Simulator  
 
-## Documentation
+## Overview  
+The Z-frame wheelchair simulator is a web-based application designed to help users understand and interact with the Z-frame wheelchair model.
 
-This project simulates a z-frame structure in various scenarios and conditions.
+## Getting Started  
+To start using the simulator, follow these steps:  
+1. Visit the official website at [Z-frame Simulator](http://zframe-simulator.com).  
+2. Follow the instructions on the landing page to set up your personal configuration.
 
-### Requirements
-- Python 3.x
-- Required packages can be installed via `pip install -r requirements.txt`
+## Features  
+- Interactive 3D model of the Z-frame wheelchair.  
+- Simulation of different settings and adjustments.  
+- User-friendly interface that works across various devices.
 
-### Usage Instructions
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/tyler-marr/z-frame-simulator.git
-   cd z-frame-simulator
-   ```
-2. Install the required packages:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Run the simulation:
-   ```bash
-   python run_simulation.py
-   ```
+## Troubleshooting  
+If you encounter any issues while using the simulator, please refer to the help section on the website or contact support.
 
-4. The simulation results will be saved in the `results/` directory.
+## Contributions  
+Contributions to improve the simulator are welcome! Please see the contribution guidelines for more details.
 
-### Contributing
-- Fork the repository and create a new branch for your feature or fix.
-- Submit a pull request once your changes are ready to be merged.
-
-### License
-This project is licensed under the MIT License. See the `LICENSE` file for more details.
+## License  
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
