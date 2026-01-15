@@ -41,31 +41,31 @@
     const norm = d => ((d % 360) + 360) % 360;
     let s = norm(startDeg);
     let e = norm(endDeg);
-  
+
     // Ensure arc goes the short way (increasing angle)
     if (e <= s) e += 360;
     const sRad = d2r(s);
     const eRad = d2r(e);
-  
+
     // Draw arc
     ctx.beginPath();
     ctx.strokeStyle = color;
     ctx.lineWidth = 3;
     ctx.arc(pivotX, pivotY, radius, sRad, eRad, false);
     ctx.stroke();
-  
+
     // Draw small arrow/handle at arc midpoint
     const mid = (sRad + eRad) / 2;
     const tx = pivotX + Math.cos(mid) * (radius + 14);
     const ty = pivotY + Math.sin(mid) * (radius + 14);
-  
+
     // Text background for readability
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
     const txt = labelText;
     ctx.font = '13px system-ui,Segoe UI,Roboto,Arial';
     const w = ctx.measureText(txt).width;
     ctx.fillRect(tx - w/2 - 6, ty - 12, w + 12, 18);
-  
+
     // Text
     ctx.fillStyle = '#111';
     ctx.fillText(txt, tx - w/2, ty + 3);
@@ -171,14 +171,14 @@ function draw(){
   // angle2: between the middle member direction (state.angle1) and the seat pan (state.angle2)
   // Use distinct radii/colors so they don't overlap.
   try {
-    // Angle1: measure from horizontal (0°) to state.angle1
+    // Angle1: measure from horizontal (0°) to state.angle1 on the top side
     const baseReferenceDeg = 0; // baseline pointing right
     const angle1Deg = state.angle1;
     drawAngleArc(
       config.basePivot.x,
       config.basePivot.y,
-      baseReferenceDeg,
-      angle1Deg,
+      baseReferenceDeg+180,
+      -(-angle1Deg),
       36,
       '#2b7cff',
       `angle1 ${angle1Deg.toFixed(1)}°`
@@ -187,14 +187,16 @@ function draw(){
     // Angle2: measure between middle member direction and seat pan direction at middle pivot
     const angle2StartDeg = state.angle1; // direction of middle member
     const angle2EndDeg = state.angle2;   // direction of seat pan (absolute)
+    const sweepDeg = (angle2EndDeg - angle2StartDeg + 360) % 360;
+    const interiorAngle2Deg = 180 - sweepDeg; // interior angle
     drawAngleArc(
       midEnd.x,
       midEnd.y,
-      angle2StartDeg,
-      angle2EndDeg,
+      angle2EndDeg + 0,
+      angle2StartDeg + 180,
       28,
       '#ff8a65',
-      `angle2 ${state.angle2.toFixed(1)}°`
+      `angle2 ${interiorAngle2Deg.toFixed(1)}°`
     );
   } catch (e) {
     // if anything goes wrong with arc drawing, ignore to avoid blocking the rest of the UI
@@ -206,11 +208,13 @@ function draw(){
   ctx.font = '14px system-ui,Segoe UI,Roboto,Arial';
   ctx.fillText(`Middle (angle1): ${state.angle1.toFixed(1)}°`, 14, 20);
   ctx.fillText(`Seat pan (angle2): ${state.angle2.toFixed(1)}°`, 14, 40);
+  const seatPanAbsoluteAngle = (state.angle1 - state.angle2) % 360;
+  ctx.fillText(`Seat pan (absolute): ${seatPanAbsoluteAngle.toFixed(1)}°`, 14, 60);
 
   // formula display
   if(state.formulaExpr){
     ctx.fillStyle = '#444';
-    ctx.fillText(`Formula: ${state.formulaExpr}`, 14, 62);
+    ctx.fillText(`Formula: ${state.formulaExpr}`, 14, 80);
   }
 }
 
