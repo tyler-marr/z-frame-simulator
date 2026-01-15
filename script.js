@@ -38,7 +38,6 @@
 
   // Canvas sizing
   function resizeCanvas(){
-    // set backing store size for crisp rendering
     const width = Math.max(600, Math.min(window.innerWidth - 120, 1000));
     const height = 520;
     canvas.width = Math.floor(width * devicePixelRatio);
@@ -47,7 +46,6 @@
     canvas.style.height = height + 'px';
     ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
 
-    // reposition base pivot in canvas coordinates
     config.basePivot.x = Math.round(width * 0.22);
     config.basePivot.y = Math.round(height * 0.72);
     draw();
@@ -152,18 +150,10 @@
 
     // Accept either "angle2 = <expr>" or just "<expr>"
     let expr = raw.trim();
-    if(/^
-*angle2\s*=/.test(expr)) expr = expr.replace(/^
-*angle2\s*=','').trim();
+    if(/\s*angle2\s*=/.test(expr)) expr = expr.replace(/\s*angle2\s*=','').trim();
 
     // Replace ^ with ** for exponent; allow common functions, PI, and variables
     expr = expr.replace(/\^/g, '**');
-
-    // Allowed tokens check — keep it simple: only allow letters, numbers, operators, parentheses, commas, dots, spaces
-    const allowedChars = /^[0-9\s()+\-*/%.,*^*eEa-zA-Z_**]+$/;
-    if(!allowedChars.test(expr)){
-      throw new Error('Formula contains invalid characters.');
-    }
 
     // Replace common math function names with Math.xxx
     const fnNames = ['sin','cos','tan','asin','acos','atan','sqrt','abs','min','max','round','floor','ceil','pow'];
@@ -211,7 +201,6 @@
     const px = evt.clientX - rect.left;
     const py = evt.clientY - rect.top;
 
-    // hover logic
     const midEnd = middleEnd();
     const seatEndPt = seatEnd();
     const dMid = pointToSegmentDistance(px,py, config.basePivot.x, config.basePivot.y, midEnd.x, midEnd.y);
@@ -224,25 +213,21 @@
     } else {
       canvas.style.cursor = 'grabbing';
       if(state.dragging === 'angle1'){
-        // rotate about basePivot
         const dx = px - config.basePivot.x;
         const dy = py - config.basePivot.y;
         let deg = r2d(Math.atan2(dy, dx));
         deg = roundHalfDegree(deg);
         state.angle1 = deg;
-        // If formula enforced, update angle2 based on angle1
         if(enforceCheckbox.checked && state.formulaFn){
           applyFormulaFromAngle1();
         }
       } else if(state.dragging === 'angle2'){
-        // rotate about middle end point
         const pivot = midEnd;
         const dx = px - pivot.x;
         const dy = py - pivot.y;
         let deg = r2d(Math.atan2(dy, dx));
         deg = roundHalfDegree(deg);
         state.angle2 = deg;
-        // NOTE: we do not attempt to invert formula; dragging angle2 overrides formula until next angle1 edit
       }
       updateDisplays();
     }
@@ -272,19 +257,16 @@
 
   // Wire events
   function addListeners(){
-    // pointer events unify mouse/touch
     canvas.addEventListener('pointermove', onPointerMove);
     canvas.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointerup', onPointerUp);
 
-    // formula input
     formulaInput.addEventListener('change', () => {
       const raw = formulaInput.value.trim();
       formulaError.textContent = '';
       try {
         compileFormula(raw);
         formulaError.textContent = '';
-        // If enforce is checked, apply immediately
         if(enforceCheckbox.checked && state.formulaFn){
           applyFormulaFromAngle1();
         }
@@ -311,7 +293,6 @@
     resizeCanvas();
     addListeners();
     updateDisplays();
-    // Optional: prefill placeholder example
     formulaInput.value = 'angle2 = 90 - angle1';
     try { compileFormula(formulaInput.value); } catch(e){ /* ignore */ }
     draw();
