@@ -36,6 +36,41 @@
   function r2d(r){ return r * 180 / Math.PI; }
   function roundHalfDegree(deg){ return Math.round(deg * 2) / 2; }
 
+  function drawAngleArc(pivotX, pivotY, startDeg, endDeg, radius, color, labelText) {
+    // normalize degrees to [0,360)
+    const norm = d => ((d % 360) + 360) % 360;
+    let s = norm(startDeg);
+    let e = norm(endDeg);
+  
+    // Ensure arc goes the short way (increasing angle)
+    if (e <= s) e += 360;
+    const sRad = d2r(s);
+    const eRad = d2r(e);
+  
+    // Draw arc
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.arc(pivotX, pivotY, radius, sRad, eRad, false);
+    ctx.stroke();
+  
+    // Draw small arrow/handle at arc midpoint
+    const mid = (sRad + eRad) / 2;
+    const tx = pivotX + Math.cos(mid) * (radius + 14);
+    const ty = pivotY + Math.sin(mid) * (radius + 14);
+  
+    // Text background for readability
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    const txt = labelText;
+    ctx.font = '13px system-ui,Segoe UI,Roboto,Arial';
+    const w = ctx.measureText(txt).width;
+    ctx.fillRect(tx - w/2 - 6, ty - 12, w + 12, 18);
+  
+    // Text
+    ctx.fillStyle = '#111';
+    ctx.fillText(txt, tx - w/2, ty + 3);
+  }
+
   // Canvas sizing
   function resizeCanvas(){
     const width = Math.max(600, Math.min(window.innerWidth - 120, 1000));
@@ -82,66 +117,102 @@
   }
 
   // Draw function
-  function draw(){
-    const w = canvas.clientWidth;
-    const h = canvas.clientHeight;
-    ctx.clearRect(0,0,w,h);
+  // Replace the existing draw() with this version (keeps original drawing + angle arcs/labels)
+function draw(){
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  ctx.clearRect(0,0,w,h);
 
-    // background
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0,0,w,h);
+  // background
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0,0,w,h);
 
-    // base line
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 8;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(config.basePivot.x - 80, config.basePivot.y);
-    ctx.lineTo(config.basePivot.x + 80, config.basePivot.y);
-    ctx.stroke();
+  // base line
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 8;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(config.basePivot.x - 80, config.basePivot.y);
+  ctx.lineTo(config.basePivot.x + 80, config.basePivot.y);
+  ctx.stroke();
 
-    // middle member
-    const midStart = { ...config.basePivot };
-    const midEnd = middleEnd();
-    ctx.strokeStyle = state.hovering === 'angle1' || state.dragging === 'angle1' ? '#ff8a65' : '#2f2f2f';
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.moveTo(midStart.x, midStart.y);
-    ctx.lineTo(midEnd.x, midEnd.y);
-    ctx.stroke();
+  // middle member
+  const midStart = { ...config.basePivot };
+  const midEnd = middleEnd();
+  ctx.strokeStyle = state.hovering === 'angle1' || state.dragging === 'angle1' ? '#ff8a65' : '#2f2f2f';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(midStart.x, midStart.y);
+  ctx.lineTo(midEnd.x, midEnd.y);
+  ctx.stroke();
 
-    // seat pan
-    const seatStart = midEnd;
-    const seatEndPt = seatEnd();
-    ctx.strokeStyle = state.hovering === 'angle2' || state.dragging === 'angle2' ? '#ff8a65' : '#666';
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.moveTo(seatStart.x, seatStart.y);
-    ctx.lineTo(seatEndPt.x, seatEndPt.y);
-    ctx.stroke();
+  // seat pan
+  const seatStart = midEnd;
+  const seatEndPt = seatEnd();
+  ctx.strokeStyle = state.hovering === 'angle2' || state.dragging === 'angle2' ? '#ff8a65' : '#666';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(seatStart.x, seatStart.y);
+  ctx.lineTo(seatEndPt.x, seatEndPt.y);
+  ctx.stroke();
 
-    // pivots
-    ctx.fillStyle = '#111';
-    ctx.beginPath();
-    ctx.arc(config.basePivot.x, config.basePivot.y, 6, 0, Math.PI*2);
-    ctx.fill();
+  // pivots
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.arc(config.basePivot.x, config.basePivot.y, 6, 0, Math.PI*2);
+  ctx.fill();
 
-    ctx.beginPath();
-    ctx.arc(midEnd.x, midEnd.y, 6, 0, Math.PI*2);
-    ctx.fill();
+  ctx.beginPath();
+  ctx.arc(midEnd.x, midEnd.y, 6, 0, Math.PI*2);
+  ctx.fill();
 
-    // angle text
-    ctx.fillStyle = '#111';
-    ctx.font = '14px system-ui,Segoe UI,Roboto,Arial';
-    ctx.fillText(`Middle (angle1): ${state.angle1.toFixed(1)}°`, 14, 20);
-    ctx.fillText(`Seat pan (angle2): ${state.angle2.toFixed(1)}°`, 14, 40);
+  // Draw angle arcs and labels:
+  // angle1: between the base horizontal (0° to the right) and middle member (state.angle1)
+  // angle2: between the middle member direction (state.angle1) and the seat pan (state.angle2)
+  // Use distinct radii/colors so they don't overlap.
+  try {
+    // Angle1: measure from horizontal (0°) to state.angle1
+    const baseReferenceDeg = 0; // baseline pointing right
+    const angle1Deg = state.angle1;
+    drawAngleArc(
+      config.basePivot.x,
+      config.basePivot.y,
+      baseReferenceDeg,
+      angle1Deg,
+      36,
+      '#2b7cff',
+      `angle1 ${angle1Deg.toFixed(1)}°`
+    );
 
-    // formula display
-    if(state.formulaExpr){
-      ctx.fillStyle = '#444';
-      ctx.fillText(`Formula: ${state.formulaExpr}`, 14, 62);
-    }
+    // Angle2: measure between middle member direction and seat pan direction at middle pivot
+    const angle2StartDeg = state.angle1; // direction of middle member
+    const angle2EndDeg = state.angle2;   // direction of seat pan (absolute)
+    drawAngleArc(
+      midEnd.x,
+      midEnd.y,
+      angle2StartDeg,
+      angle2EndDeg,
+      28,
+      '#ff8a65',
+      `angle2 ${state.angle2.toFixed(1)}°`
+    );
+  } catch (e) {
+    // if anything goes wrong with arc drawing, ignore to avoid blocking the rest of the UI
+    // console.warn('Angle label draw error', e);
   }
+
+  // angle text (left UI)
+  ctx.fillStyle = '#111';
+  ctx.font = '14px system-ui,Segoe UI,Roboto,Arial';
+  ctx.fillText(`Middle (angle1): ${state.angle1.toFixed(1)}°`, 14, 20);
+  ctx.fillText(`Seat pan (angle2): ${state.angle2.toFixed(1)}°`, 14, 40);
+
+  // formula display
+  if(state.formulaExpr){
+    ctx.fillStyle = '#444';
+    ctx.fillText(`Formula: ${state.formulaExpr}`, 14, 62);
+  }
+}
 
   // Compile user formula (basic sanitizer + compile)
   function compileFormula(raw){
