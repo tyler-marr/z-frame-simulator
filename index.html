@@ -1,31 +1,44 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Z-frame Wheelchair Simulator</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Z-frame Wheelchair Simulator</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div class="container">
     <header>
-        <h1>Welcome to the Z-frame Wheelchair Simulator</h1>
+      <h1>Z-frame Wheelchair Simulator</h1>
+      <p>Drag the middle member (angle1) or the seat pan (angle2) to rotate about their pivots. Enter a formula (in degrees) to relate angle1 → angle2, e.g. <code>angle2 = 90 - angle1</code> or <code>angle2 = 0.5 * angle1 + 10</code>.</p>
     </header>
-    <main>
-        <section>
-            <h2>Simulator Controls</h2>
-            <p>Use the controls below to operate the wheelchair simulator.</p>
-            <!-- Simulator controls will be added here -->
-        </section>
-        <section>
-            <h2>Features</h2>
-            <ul>
-                <li>Realistic wheelchair movements</li>
-                <li>Different terrain simulations</li>
-                <li>User-friendly interface</li>
-            </ul>
-        </section>
-    </main>
+
+    <section class="controls">
+      <label>
+        Formula (use variables angle1, angle2, angle3; degrees):
+        <input id="formula-input" type="text" placeholder="angle2 = 90 - angle1" />
+      </label>
+      <label class="inline">
+        <input id="enforce-checkbox" type="checkbox" />
+        Enforce formula (angle1 → angle2)
+      </label>
+      <div id="formula-error" class="error" aria-live="polite"></div>
+
+      <div class="angles">
+        <div>Middle (angle1): <span id="angle1-val">0.0°</span></div>
+        <div>Seat pan (angle2): <span id="angle2-val">0.0°</span></div>
+      </div>
+    </section>
+
+    <div class="sim-wrap">
+      <canvas id="canvas"></canvas>
+    </div>
+
     <footer>
-        <p>&copy; 2026 Z-frame Simulator. All Rights Reserved.</p>
+      <small>Angle resolution: 0.5°. Formula expressions are evaluated in degrees and may use trig functions (sin/cos/tan) that expect degrees.</small>
     </footer>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
