@@ -12,6 +12,8 @@
   const enforceCheckbox = document.getElementById('enforce-checkbox');
   const formulaError = document.getElementById('formula-error');
 
+  const debugA = document.getElementById('debugA-val');
+
   // Layout / geometry
   const config = {
     basePivot: { x: 240, y: 360 }, // will be repositioned on resize
@@ -22,8 +24,8 @@
 
   // State
   const state = {
-    angle1: 30, // degrees (middle)
-    angle2: 10, // degrees (seat pan)
+    angle1: 90, // degrees (middle)
+    angle2: 90, // degrees (seat pan)
     angle3: 0,  // reserved (base)
     dragging: null, // 'angle1' | 'angle2' | null
     hovering: null, // same
@@ -51,13 +53,18 @@
     ctx.beginPath();
     ctx.strokeStyle = color;
     ctx.lineWidth = 3;
-    ctx.arc(pivotX, pivotY, radius, sRad, eRad, false);
+    if (e - s < 180)
+    {
+      ctx.arc(pivotX, pivotY, radius, sRad, eRad, false);
+    } else {
+      ctx.arc(pivotX, pivotY, radius, eRad, sRad, false);
+    }
     ctx.stroke();
 
     // Draw small arrow/handle at arc midpoint
     const mid = (sRad + eRad) / 2;
-    const tx = pivotX + Math.cos(mid) * (radius + 14);
-    const ty = pivotY + Math.sin(mid) * (radius + 14);
+    const tx = pivotX + Math.cos(mid+Math.PI) * (radius + 20);
+    const ty = pivotY + Math.sin(mid+Math.PI) * (radius + 20);
 
     // Text background for readability
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
@@ -81,14 +88,14 @@
     canvas.style.height = height + 'px';
     ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
 
-    config.basePivot.x = Math.round(width * 0.22);
+    config.basePivot.x = Math.round(width * 0.44);
     config.basePivot.y = Math.round(height * 0.72);
     draw();
   }
 
   // Geometry endpoints
   function middleEnd() {
-    const a = d2r(state.angle1);
+    const a = d2r(state.angle1+180);
     return {
       x: config.basePivot.x + config.middleLength * Math.cos(a),
       y: config.basePivot.y + config.middleLength * Math.sin(a)
@@ -97,7 +104,7 @@
 
   function seatEnd() {
     const mid = middleEnd();
-    const a = d2r(state.angle2);
+    const a = d2r(state.angle1-state.angle2);
     return {
       x: mid.x + config.seatPanLength * Math.cos(a),
       y: mid.y + config.seatPanLength * Math.sin(a)
@@ -132,8 +139,8 @@ function draw(){
   ctx.lineWidth = 8;
   ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(config.basePivot.x - 80, config.basePivot.y);
-  ctx.lineTo(config.basePivot.x + 80, config.basePivot.y);
+  ctx.moveTo(config.basePivot.x-160, config.basePivot.y);
+  ctx.lineTo(config.basePivot.x, config.basePivot.y);
   ctx.stroke();
 
   // middle member
@@ -178,7 +185,7 @@ function draw(){
       config.basePivot.x,
       config.basePivot.y,
       baseReferenceDeg+180,
-      -(-angle1Deg),
+      angle1Deg+180,
       36,
       '#2b7cff',
       `angle1 ${angle1Deg.toFixed(1)}°`
@@ -186,14 +193,14 @@ function draw(){
 
     // Angle2: measure between middle member direction and seat pan direction at middle pivot
     const angle2StartDeg = state.angle1; // direction of middle member
-    const angle2EndDeg = state.angle2;   // direction of seat pan (absolute)
+    const angle2EndDeg = state.angle1 - state.angle2;   // direction of seat pan (absolute)
     const sweepDeg = (angle2EndDeg - angle2StartDeg + 360) % 360;
-    const interiorAngle2Deg = 180 - sweepDeg; // interior angle
+    const interiorAngle2Deg = state.angle2; // interior angle
     drawAngleArc(
       midEnd.x,
       midEnd.y,
-      angle2EndDeg + 0,
-      angle2StartDeg + 180,
+      angle2EndDeg,
+      angle2StartDeg,
       28,
       '#ff8a65',
       `angle2 ${interiorAngle2Deg.toFixed(1)}°`
@@ -295,7 +302,7 @@ function draw(){
       if(state.dragging === 'angle1'){
         const dx = px - config.basePivot.x;
         const dy = py - config.basePivot.y;
-        let deg = r2d(Math.atan2(dy, dx));
+        let deg = r2d(Math.atan2(dy, dx))+180;
         deg = roundHalfDegree(deg);
         state.angle1 = deg;
         if(enforceCheckbox.checked && state.formulaFn){
@@ -306,8 +313,12 @@ function draw(){
         const dx = px - pivot.x;
         const dy = py - pivot.y;
         let deg = r2d(Math.atan2(dy, dx));
-        deg = roundHalfDegree(deg);
-        state.angle2 = deg;
+        debugA.textContent = `${roundHalfDegree(deg)}°`;
+        deg = -roundHalfDegree(deg) + state.angle1;
+
+        
+        
+        state.angle2 = deg ;
       }
       updateDisplays();
     }
