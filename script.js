@@ -8,9 +8,6 @@
   const ctx = canvas.getContext('2d');
   const angle1Display = document.getElementById('angle1-val');
   const angle2Display = document.getElementById('angle2-val');
-  const formulaInput = document.getElementById('formula-input');
-  const enforceCheckbox = document.getElementById('enforce-checkbox');
-  const formulaError = document.getElementById('formula-error');
 
   const debugA = document.getElementById('debugA-val');
 
@@ -35,8 +32,6 @@
     angle3: 0,  // reserved (base)
     dragging: null, // 'angle1' | 'angle2' | null
     hovering: null, // same
-    formulaExpr: '', // user-entered string (right hand side, or full assignment)
-    formulaFn: null, // compiled function(angle1,angle2,angle3) => number (degrees)
     buttonHeld: null, // 'increase' | 'decrease' | null (for hold-down behavior)
     buttonFrameCounter: 0, // counter to slow down button movement
     cursorX: 0,
@@ -340,10 +335,10 @@ function draw(){
   const actuatorGroups = [
     { label: 'Act-1', buttons: ['act1Down', 'act1Up'] },
     { label: 'Act-2', buttons: ['act2Down', 'act2Up'] },
-    { label: 'Z-1', buttons: ['z1Down', 'z1Up'] },
-    { label: 'Z-2', buttons: ['z2Down', 'z2Up'] },
-    { label: 'Z-Elevate', buttons: ['zElevateDown', 'zElevateUp'] },
-    { label: 'Z-Tilt', buttons: ['zTiltDown', 'zTiltUp'] },
+    { label: 'Act-1-then-2', buttons: ['z1Down', 'z1Up'] },
+    { label: 'Act-2-then-1', buttons: ['z2Down', 'z2Up'] },
+    { label: 'Z-Sum-Const', buttons: ['zElevateDown', 'zElevateUp'] },
+    { label: 'Z-Diff-Const', buttons: ['zTiltDown', 'zTiltUp'] },
   ];
 
   actuatorGroups.forEach(group => {
@@ -414,47 +409,6 @@ function drawCanvasCheckbox(){
   ctx.textBaseline = 'middle';
   ctx.fillText(cb.label, cb.x + cb.size + 8, cb.y + cb.size / 2);
 }
-
-  // Compile user formula (basic sanitizer + compile)
-  function compileFormula(raw){
-  formulaError.textContent = '';
-  if (!raw || !raw.trim()) { state.formulaFn = null; state.formulaExpr = ''; return; }
-
-  // Accept either "angle2 = <expr>" or just "<expr>"
-  let expr = raw.trim();
-  if (/^\s*angle2\s*=/.test(expr)) {
-    expr = expr.replace(/^\s*angle2\s*=/, '').trim();
-  }
-
-  // Replace ^ with ** for exponent
-  expr = expr.replace(/\^/g, '**');
-
-  // Replace common math function names with Math.xxx (only function calls, e.g. sin(...))
-  const fnNames = ['sin','cos','tan','asin','acos','atan','sqrt','abs','min','max','round','floor','ceil','pow'];
-  fnNames.forEach(fn => {
-    const re = new RegExp('\\b' + fn + '\\s*\\(', 'g');
-    expr = expr.replace(re, 'Math.' + fn + '(');
-  });
-
-  // Replace PI (case-insensitive)
-  expr = expr.replace(/\bPI\b/gi, 'Math.PI');
-
-  // Ensure variables angle1/angle2/angle3 are used as-is (word boundaries)
-  expr = expr.replace(/\bangle1\b/g, 'angle1')
-             .replace(/\bangle2\b/g, 'angle2')
-             .replace(/\bangle3\b/g, 'angle3');
-
-  // Build a function that accepts angles in degrees and returns degrees
-  const fn = new Function('angle1','angle2','angle3', 'return (' + expr + ');');
-
-  // Test-run the function with safe numbers to catch runtime errors
-  const test = fn(10, 5, 0);
-  if (typeof test !== 'number' || !isFinite(test)) throw new Error('Formula did not return a finite number.');
-
-  state.formulaFn = fn;
-  state.formulaExpr = raw.trim();
-}
-
   // Check if point is in button or checkbox
   function getButtonAtPoint(px, py){
     // Check checkbox first
@@ -501,9 +455,6 @@ function drawCanvasCheckbox(){
 
           if(Math.abs(newAngle1 - state.angle1) > 0.01){
             state.angle1 = newAngle1;
-            if(enforceCheckbox.checked && state.formulaFn){
-              applyFormulaFromAngle1();
-            }
             updateDisplays();
           }
         }
@@ -541,9 +492,6 @@ function drawCanvasCheckbox(){
 
             if(Math.abs(newAngle1 - state.angle1) > 0.01){
               state.angle1 = newAngle1;
-              if(enforceCheckbox.checked && state.formulaFn){
-                applyFormulaFromAngle1();
-              }
               updateDisplays();
             }
           }
@@ -563,9 +511,6 @@ function drawCanvasCheckbox(){
 
             if(Math.abs(newAngle1 - state.angle1) > 0.01){
               state.angle1 = newAngle1;
-              if(enforceCheckbox.checked && state.formulaFn){
-                applyFormulaFromAngle1();
-              }
               updateDisplays();
             }
           } else {
@@ -647,22 +592,6 @@ function drawCanvasCheckbox(){
     }
   }
 
-  // Evaluate formula mapping angle1→angle2 (angles provided in degrees)
-  function applyFormulaFromAngle1(){
-    if(!state.formulaFn) return;
-    try {
-      const res = state.formulaFn(state.angle1, state.angle2, state.angle3);
-      if(typeof res === 'number' && isFinite(res)){
-        state.angle2 = roundHalfDegree(constrainAngle2(res));
-        updateDisplays();
-      } else {
-        throw new Error('Result is not a finite number');
-      }
-    } catch (err){
-      formulaError.textContent = 'Formula error: ' + (err.message || err);
-      state.formulaFn = null;
-    }
-  }
   function onPointerMove(evt){
     const rect = canvas.getBoundingClientRect();
     const px = evt.clientX - rect.left;
@@ -707,9 +636,6 @@ function drawCanvasCheckbox(){
         if(deg !== state.angle1){
           state.angle1 = deg;
           changed = true;
-          if(enforceCheckbox.checked && state.formulaFn){
-            applyFormulaFromAngle1();
-          }
         }
       } else if(state.dragging === 'angle2'){
         const pivot = midEnd;
@@ -728,8 +654,8 @@ function drawCanvasCheckbox(){
 
       if(changed){
         updateDisplays();
-        draw();
       }
+      draw();
     }
   }
 
@@ -780,30 +706,6 @@ function drawCanvasCheckbox(){
     canvas.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointerup', onPointerUp);
 
-    formulaInput.addEventListener('change', () => {
-      const raw = formulaInput.value.trim();
-      formulaError.textContent = '';
-      try {
-        compileFormula(raw);
-        formulaError.textContent = '';
-        if(enforceCheckbox.checked && state.formulaFn){
-          applyFormulaFromAngle1();
-        }
-      } catch(err){
-        formulaError.textContent = 'Formula error: ' + (err.message || err);
-        state.formulaFn = null;
-      }
-      draw();
-    });
-
-    enforceCheckbox.addEventListener('change', () => {
-      formulaError.textContent = '';
-      if(enforceCheckbox.checked && state.formulaFn){
-        applyFormulaFromAngle1();
-      }
-      draw();
-    });
-
     window.addEventListener('resize', resizeCanvas);
   }
 
@@ -812,8 +714,6 @@ function drawCanvasCheckbox(){
     resizeCanvas();
     addListeners();
     updateDisplays();
-    formulaInput.value = 'angle2 = 90 - angle1';
-    try { compileFormula(formulaInput.value); } catch(e){ /* ignore */ }
     draw();
   }
 
