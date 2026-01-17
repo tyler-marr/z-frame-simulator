@@ -38,6 +38,15 @@
     cursorY: 0,
   };
 
+  // Graph/oscilloscope data tracking
+  const graphData = {
+    startTime: Date.now(),
+    maxDuration: 30000, // 30 seconds in milliseconds
+    dataPoints: [], // { time, angle1, angle2, seatPanSum, buttonAction }
+    lastRecordTime: 0,
+    recordInterval: 50, // record every 50ms to keep data manageable
+  };
+
   // Button configuration
   const buttons = {
     act1Down: { x: 90, y: 340, width: 60, height: 25, label: '◀', group: 'Act-1' },
@@ -95,6 +104,30 @@
   function constrainAngle2(angle){
     const { min, max } = getAngle2Limits();
     return Math.max(min, Math.min(max, angle));
+  }
+
+  // Record data point for oscilloscope graph
+  function recordGraphData(){
+    const now = Date.now();
+    if(now - graphData.lastRecordTime >= graphData.recordInterval){
+      graphData.lastRecordTime = now;
+      const elapsed = now - graphData.startTime;
+      // Normalize to -180 to +180 range to avoid warping when crossing zero
+      let seatPanAbsolute = state.angle1 - state.angle2;
+      while(seatPanAbsolute > 180) seatPanAbsolute -= 360;
+      while(seatPanAbsolute < -180) seatPanAbsolute += 360;
+
+      graphData.dataPoints.push({
+        time: elapsed,
+        angle1: state.angle1,
+        angle2: state.angle2,
+        seatPanSum: seatPanAbsolute,
+        buttonAction: state.buttonHeld || null
+      });
+
+      // Remove old data points outside 30 second window
+      graphData.dataPoints = graphData.dataPoints.filter(p => p.time > elapsed - graphData.maxDuration);
+    }
   }
 
   function drawAngleArc(pivotX, pivotY, startDeg, endDeg, radius, color, labelText, isAtLimit = false) {
@@ -167,7 +200,7 @@
     ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
 
     config.basePivot.x = Math.round(width * 0.44);
-    config.basePivot.y = Math.round(height * 0.72);
+    config.basePivot.y = Math.round(height * 0.55);
     draw();
   }
 
@@ -358,6 +391,9 @@ function draw(){
   // Draw canvas checkbox
   drawCanvasCheckbox();
 
+  // Draw oscilloscope graph
+  drawOscilloscope();
+
   ctx.textAlign = 'left';
 }
 
@@ -409,6 +445,142 @@ function drawCanvasCheckbox(){
   ctx.textBaseline = 'middle';
   ctx.fillText(cb.label, cb.x + cb.size + 8, cb.y + cb.size / 2);
 }
+
+function drawOscilloscope(){
+  // Graph dimensions and position
+  const graphX = canvas.clientWidth - 320;
+  const graphY = 10;
+  const graphWidth = 300;
+  const graphHeight = 200;
+
+  // Draw background
+  ctx.fillStyle = '#f0f0f0';
+  ctx.fillRect(graphX, graphY, graphWidth, graphHeight);
+
+  // Draw border
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(graphX, graphY, graphWidth, graphHeight);
+
+  // Draw title
+  ctx.fillStyle = '#333';
+  ctx.font = 'bold 12px system-ui,Segoe UI,Roboto,Arial';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('Angles (30s)', graphX + 5, graphY + 5);
+
+  if(graphData.dataPoints.length < 2) return; // Need at least 2 points to draw
+
+  const now = Date.now() - graphData.startTime;
+  const timeRange = graphData.maxDuration; // 30 seconds
+  const angleMax = 180; // max angle scale
+
+  // Draw grid lines
+  ctx.strokeStyle = '#ddd';
+  ctx.lineWidth = 1;
+  for(let i = 0; i <= 5; i++){
+    const y = graphY + (graphHeight / 5) * i;
+    ctx.beginPath();
+    ctx.moveTo(graphX, y);
+    ctx.lineTo(graphX + graphWidth, y);
+    ctx.stroke();
+  }
+
+  // Helper to convert data to screen coordinates
+  function dataToScreen(time, value){
+    const xRatio = (now - time) / timeRange; // older data on left
+    const x = graphX + graphWidth - (xRatio * graphWidth);
+    const yRatio = value / angleMax;
+    const y = graphY + graphHeight - (yRatio * graphHeight);
+    return { x, y };
+  }
+
+  // Draw angle1 trace (blue)
+  ctx.strokeStyle = '#2b7cff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  let firstPoint = true;
+  for(let p of graphData.dataPoints){
+    const { x, y } = dataToScreen(p.time, p.angle1);
+    if(x >= graphX && x <= graphX + graphWidth){
+      if(firstPoint){
+        ctx.moveTo(x, y);
+        firstPoint = false;
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+  }
+  ctx.stroke();
+
+  // Draw angle2 trace (orange)
+  ctx.strokeStyle = '#ff8a65';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  firstPoint = true;
+  for(let p of graphData.dataPoints){
+    const { x, y } = dataToScreen(p.time, p.angle2);
+    if(x >= graphX && x <= graphX + graphWidth){
+      if(firstPoint){
+        ctx.moveTo(x, y);
+        firstPoint = false;
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+  }
+  ctx.stroke();
+
+  // Draw seat pan sum trace (green) - offset by 90 to center it higher
+  ctx.strokeStyle = '#4caf50';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  firstPoint = true;
+  for(let p of graphData.dataPoints){
+    const { x, y } = dataToScreen(p.time, p.seatPanSum + 90);
+    if(x >= graphX && x <= graphX + graphWidth){
+      if(firstPoint){
+        ctx.moveTo(x, y);
+        firstPoint = false;
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+  }
+  ctx.stroke();
+
+  // Draw current time marker (right edge)
+  const { x: nowX } = dataToScreen(now, 0);
+  ctx.strokeStyle = '#ff0000';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.moveTo(nowX, graphY);
+  ctx.lineTo(nowX, graphY + graphHeight);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Draw legend
+  const legendY = graphY + graphHeight + 5;
+  ctx.font = '10px system-ui,Segoe UI,Roboto,Arial';
+  ctx.textBaseline = 'top';
+
+  ctx.fillStyle = '#2b7cff';
+  ctx.fillRect(graphX, legendY, 8, 8);
+  ctx.fillStyle = '#333';
+  ctx.textAlign = 'left';
+  ctx.fillText('angle1', graphX + 12, legendY);
+
+  ctx.fillStyle = '#ff8a65';
+  ctx.fillRect(graphX + 80, legendY, 8, 8);
+  ctx.fillStyle = '#333';
+  ctx.fillText('angle2', graphX + 92, legendY);
+
+  ctx.fillStyle = '#4caf50';
+  ctx.fillRect(graphX + 160, legendY, 8, 8);
+  ctx.fillStyle = '#333';
+  ctx.fillText('seat angle', graphX + 172, legendY);
+}
   // Check if point is in button or checkbox
   function getButtonAtPoint(px, py){
     // Check checkbox first
@@ -424,6 +596,13 @@ function drawCanvasCheckbox(){
       }
     }
     return null;
+  }
+
+  // Continuous frame timer to record graph data
+  function frameTimer(){
+    recordGraphData();
+    draw();
+    requestAnimationFrame(frameTimer);
   }
 
   // Continuous update loop for held buttons
@@ -715,6 +894,7 @@ function drawCanvasCheckbox(){
     addListeners();
     updateDisplays();
     draw();
+    frameTimer(); // Start continuous graph recording
   }
 
   init();
