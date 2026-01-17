@@ -26,6 +26,44 @@
     margin-bottom: 20px;
 }
 
+.angle-controls {
+    display: flex;
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.angle-controls button {
+    padding: 8px 16px;
+    background-color: #2b7cff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.angle-controls button:hover {
+    background-color: #1e5ab0;
+}
+
+.angle-controls button:active {
+    background-color: #184a88;
+}
+
+.angle-limits {
+    font-size: 12px;
+    margin-top: 4px;
+    display: flex;
+    gap: 12px;
+}
+
+.angle-limits label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
 .footer {
     font-size: 14px;
     color: #777;

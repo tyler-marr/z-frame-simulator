@@ -25,10 +25,22 @@
       <div id="formula-error" class="error" aria-live="polite"></div>
 
       <div class="angles">
-        <div>Middle (angle1): <span id="angle1-val">0.0°</span></div>
-        <div>Seat pan (angle2): <span id="angle2-val">0.0°</span></div>
+        <div>
+          Middle (angle1): <span id="angle1-val">0.0°</span>
+          <div class="angle-limits">
+            <label>Min: <input id="angle1-min" type="number" value="0" style="width: 60px;" /></label>
+            <label>Max: <input id="angle1-max" type="number" value="40" style="width: 60px;" /></label>
+          </div>
+        </div>
+        <div>
+          Seat pan (angle2): <span id="angle2-val">0.0°</span>
+          <div class="angle-limits">
+            <label>Min: <input id="angle2-min" type="number" value="0" style="width: 60px;" /></label>
+            <label>Max: <input id="angle2-max" type="number" value="40" style="width: 60px;" /></label>
+          </div>
+        </div>
         <div>debugA-val: <span id="debugA-val">0.0°</span></div>
-        
+
       </div>
     </section>
 
