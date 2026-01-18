@@ -619,7 +619,7 @@ function drawOscilloscope(){
 
         // Determine which angle to control and the direction
         const isIncrease = state.buttonHeld === 'increase' || state.buttonHeld === 'act1Up' || state.buttonHeld === 'act2Up' || state.buttonHeld === 'z1Up' || state.buttonHeld === 'z2Up' || state.buttonHeld === 'zElevateUp' || state.buttonHeld === 'zTiltUp';
-        const delta = isIncrease ? 0.2 : -0.2;
+        const delta = isIncrease ? 0.4 : -0.4;
 
         // Get limit status
         const { min: angle1Min, max: angle1Max } = getAngle1Limits();
