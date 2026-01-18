@@ -5,19 +5,10 @@ The Z-frame wheelchair simulator is a web-based application designed to help use
 
 ## Getting Started  
 To start using the simulator, follow these steps:  
-1. Visit the official website at [Z-frame Simulator](http://zframe-simulator.com).  
-2. Follow the instructions on the landing page to set up your personal configuration.
+1. Visit the website at [Z-frame Simulator](https://tyler-marr.github.io/z-frame-simulator/).  
+2. Play around with it!
 
 ## Features  
-- Interactive 3D model of the Z-frame wheelchair.  
+- Interactive 2D model of the Z-frame wheelchair.  
 - Simulation of different settings and adjustments.  
 - User-friendly interface that works across various devices.
-
-## Troubleshooting  
-If you encounter any issues while using the simulator, please refer to the help section on the website or contact support.
-
-## Contributions  
-Contributions to improve the simulator are welcome! Please see the contribution guidelines for more details.
-
-## License  
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
