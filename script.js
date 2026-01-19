@@ -17,6 +17,12 @@
   const angle2MinInput = document.getElementById('angle2-min');
   const angle2MaxInput = document.getElementById('angle2-max');
 
+  // Position input elements
+  const pos1Angle1Input = document.getElementById('pos1-angle1');
+  const pos1Angle2Input = document.getElementById('pos1-angle2');
+  const pos2Angle1Input = document.getElementById('pos2-angle1');
+  const pos2Angle2Input = document.getElementById('pos2-angle2');
+
   // Layout / geometry
   const config = {
     basePivot: { x: 240, y: 360 }, // will be repositioned on resize
@@ -36,6 +42,12 @@
     buttonFrameCounter: 0, // counter to slow down button movement
     cursorX: 0,
     cursorY: 0,
+    position1: { angle1: 15, angle2: 25 }, // draggable point 1 on phase graph
+    position2: { angle1: 35, angle2: 10 }, // draggable point 2 on phase graph
+    draggingPosition: null, // 'position1' | 'position2' | null
+    movingTowards: null, // 'position1' | 'position2' | null - animating towards saved position
+    targetAngle1: null,
+    targetAngle2: null,
   };
 
   // Graph/oscilloscope data tracking
@@ -66,6 +78,9 @@
 
     zTiltDown: { x: 90, y: 490, width: 60, height: 25, label: '◀', group: 'Z-Tilt' },
     zTiltUp: { x: 160, y: 490, width: 60, height: 25, label: '▶', group: 'Z-Tilt' },
+
+    pos1: { x: 90, y: 520, width: 60, height: 25, label: 'Pos 1', group: 'Position' },
+    pos2: { x: 160, y: 520, width: 60, height: 25, label: 'Pos 2', group: 'Position' },
   };
 
   // Canvas checkbox
@@ -75,6 +90,17 @@
     size: 15,
     label: 'Allow Limited Movement',
     checked: true
+  };
+
+  // Joystick configuration
+  const joystick = {
+    x: 290,
+    y: 480,
+    radius: 40,
+    knobRadius: 12,
+    knobX: 0,
+    knobY: 0,
+    isDragging: false
   };
 
   // Helpers
@@ -192,7 +218,7 @@
   // Canvas sizing
   function resizeCanvas(){
     const width = Math.max(600, Math.min(window.innerWidth - 120, 1000));
-    const height = 520;
+    const height = 580;
     canvas.width = Math.floor(width * devicePixelRatio);
     canvas.height = Math.floor(height * devicePixelRatio);
     canvas.style.width = width + 'px';
@@ -391,8 +417,18 @@ function draw(){
   // Draw canvas checkbox
   drawCanvasCheckbox();
 
+  // Draw joystick
+  drawJoystick();
+
   // Draw oscilloscope graph
   drawOscilloscope();
+
+  // Draw angle1 vs angle2 plot
+  drawAngle1Vs2();
+
+  // Draw position buttons
+  drawButton(buttons.pos1, false);
+  drawButton(buttons.pos2, false);
 
   ctx.textAlign = 'left';
 }
@@ -444,6 +480,51 @@ function drawCanvasCheckbox(){
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.fillText(cb.label, cb.x + cb.size + 8, cb.y + cb.size / 2);
+}
+
+function drawJoystick(){
+  const j = joystick;
+
+  // Draw background circle
+  ctx.fillStyle = '#e8e8e8';
+  ctx.beginPath();
+  ctx.arc(j.x, j.y, j.radius, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Draw center crosshair
+  ctx.strokeStyle = '#ccc';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(j.x - 10, j.y);
+  ctx.lineTo(j.x + 10, j.y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(j.x, j.y - 10);
+  ctx.lineTo(j.x, j.y + 10);
+  ctx.stroke();
+
+  // Draw knob
+  const knobX = j.x + j.knobX;
+  const knobY = j.y + j.knobY;
+  ctx.fillStyle = '#2b7cff';
+  ctx.beginPath();
+  ctx.arc(knobX, knobY, j.knobRadius, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Draw label
+  ctx.fillStyle = '#333';
+  ctx.font = '10px system-ui,Segoe UI,Roboto,Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText('Joystick', j.x, j.y + j.radius + 8);
 }
 
 function drawOscilloscope(){
@@ -581,12 +662,152 @@ function drawOscilloscope(){
   ctx.fillStyle = '#333';
   ctx.fillText('seat angle', graphX + 172, legendY);
 }
+
+function drawAngle1Vs2(){
+  // Plot dimensions and position (below oscilloscope)
+  const plotX = canvas.clientWidth - 320;
+  const plotY = 235;
+  const plotWidth = 300;
+  const plotHeight = 200;
+
+  // Draw background
+  ctx.fillStyle = '#f0f0f0';
+  ctx.fillRect(plotX, plotY, plotWidth, plotHeight);
+
+  // Draw border
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(plotX, plotY, plotWidth, plotHeight);
+
+  // Draw title
+  ctx.fillStyle = '#333';
+  ctx.font = 'bold 12px system-ui,Segoe UI,Roboto,Arial';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('angle1 vs angle2', plotX + 5, plotY + 5);
+
+  if(graphData.dataPoints.length < 1) return; // Need at least 1 point to draw
+
+  // Get angle limits
+  const { min: angle1Min, max: angle1Max } = getAngle1Limits();
+  const { min: angle2Min, max: angle2Max } = getAngle2Limits();
+  const angle1Range = angle1Max - angle1Min;
+  const angle2Range = angle2Max - angle2Min;
+
+  // Add 5% margin to bounds
+  const marginFactor = 0.05;
+  const angle1MarginMin = angle1Min - (angle1Range * marginFactor);
+  const angle1MarginMax = angle1Max + (angle1Range * marginFactor);
+  const angle2MarginMin = angle2Min - (angle2Range * marginFactor);
+  const angle2MarginMax = angle2Max + (angle2Range * marginFactor);
+  const angle1RangeWithMargin = angle1MarginMax - angle1MarginMin;
+  const angle2RangeWithMargin = angle2MarginMax - angle2MarginMin;
+
+  // Draw grid lines
+  ctx.strokeStyle = '#ddd';
+  ctx.lineWidth = 1;
+  for(let i = 0; i <= 5; i++){
+    const x = plotX + (plotWidth / 5) * i;
+    ctx.beginPath();
+    ctx.moveTo(x, plotY);
+    ctx.lineTo(x, plotY + plotHeight);
+    ctx.stroke();
+
+    const y = plotY + (plotHeight / 5) * i;
+    ctx.beginPath();
+    ctx.moveTo(plotX, y);
+    ctx.lineTo(plotX + plotWidth, y);
+    ctx.stroke();
+  }
+
+  // Draw axis labels
+  ctx.font = '9px system-ui,Segoe UI,Roboto,Arial';
+  ctx.fillStyle = '#666';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText(angle1MarginMin.toFixed(0), plotX, plotY + plotHeight + 2);
+  ctx.fillText(angle1MarginMax.toFixed(0), plotX + plotWidth, plotY + plotHeight + 2);
+
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(angle2MarginMax.toFixed(0), plotX - 3, plotY);
+  ctx.fillText(angle2MarginMin.toFixed(0), plotX - 3, plotY + plotHeight);
+
+  // Helper to convert data to screen coordinates
+  function dataToScreen(angle1, angle2){
+    const xRatio = (angle1 - angle1MarginMin) / angle1RangeWithMargin;
+    const x = plotX + (xRatio * plotWidth);
+    const yRatio = (angle2 - angle2MarginMin) / angle2RangeWithMargin;
+    const y = plotY + plotHeight - (yRatio * plotHeight);
+    return { x, y };
+  }
+
+  // Draw data points as dots with connecting lines
+  ctx.strokeStyle = '#2b7cff';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  let firstPointDrawn = false;
+  for(let p of graphData.dataPoints){
+    const { x, y } = dataToScreen(p.angle1, p.angle2);
+    if(x >= plotX && x <= plotX + plotWidth && y >= plotY && y <= plotY + plotHeight){
+      if(!firstPointDrawn){
+        ctx.moveTo(x, y);
+        firstPointDrawn = true;
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+  }
+  ctx.stroke();
+
+  // Draw current point as a dot
+  if(graphData.dataPoints.length > 0){
+    const lastP = graphData.dataPoints[graphData.dataPoints.length - 1];
+    const { x, y } = dataToScreen(lastP.angle1, lastP.angle2);
+    if(x >= plotX && x <= plotX + plotWidth && y >= plotY && y <= plotY + plotHeight){
+      ctx.fillStyle = '#ff6b6b';
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  // Draw position markers
+  const pos1Screen = dataToScreen(state.position1.angle1, state.position1.angle2);
+  if(pos1Screen.x >= plotX && pos1Screen.x <= plotX + plotWidth && pos1Screen.y >= plotY && pos1Screen.y <= plotY + plotHeight){
+    ctx.fillStyle = '#00cc00';
+    ctx.beginPath();
+    ctx.arc(pos1Screen.x, pos1Screen.y, 5, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  const pos2Screen = dataToScreen(state.position2.angle1, state.position2.angle2);
+  if(pos2Screen.x >= plotX && pos2Screen.x <= plotX + plotWidth && pos2Screen.y >= plotY && pos2Screen.y <= plotY + plotHeight){
+    ctx.fillStyle = '#0066ff';
+    ctx.beginPath();
+    ctx.arc(pos2Screen.x, pos2Screen.y, 5, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+}
   // Check if point is in button or checkbox
   function getButtonAtPoint(px, py){
     // Check checkbox first
     if(px >= canvasCheckbox.x && px <= canvasCheckbox.x + canvasCheckbox.size &&
        py >= canvasCheckbox.y && py <= canvasCheckbox.y + canvasCheckbox.size){
       return 'canvasCheckbox';
+    }
+
+    // Check joystick
+    const dx = px - joystick.x;
+    const dy = py - joystick.y;
+    if(Math.hypot(dx, dy) <= joystick.radius){
+      return 'joystick';
     }
 
     for(const [key, btn] of Object.entries(buttons)){
@@ -598,9 +819,107 @@ function drawOscilloscope(){
     return null;
   }
 
+  // Apply joystick movement with feathering between Z-Elevate and Z-Tilt
+  function applyJoystickMovement(){
+    const x = joystick.knobX / joystick.radius;
+    const y = -joystick.knobY / joystick.radius; // negative because Y is down in canvas
+    const magnitude = Math.hypot(x, y);
+
+    if(magnitude < 0.1) return; // Dead zone
+
+    // Calculate angle of stick (0 = right, 90 = up)
+    const angle = Math.atan2(y, x) * 180 / Math.PI;
+
+    // Normalize angle to 0-360
+    const normalizedAngle = (angle + 360) % 360;
+
+    // Z-Elevate is at 90° (up) and 270° (down), Z-Tilt is at 0°/180° (left/right)
+    // Calculate blend factor: 1 = full Z-Elevate, 0 = full Z-Tilt
+    let elevateBlend = 0;
+    if(normalizedAngle >= 45 && normalizedAngle <= 135){
+      // Upper half - Z-Elevate dominance
+      elevateBlend = Math.cos((normalizedAngle - 90) * Math.PI / 180) ** 2;
+    } else if(normalizedAngle > 135 && normalizedAngle < 225){
+      // Left side - transitioning
+      elevateBlend = Math.sin((normalizedAngle - 180) * Math.PI / 180) ** 2;
+    } else if(normalizedAngle >= 225 && normalizedAngle <= 315){
+      // Lower half - Z-Elevate dominance (for down direction)
+      elevateBlend = Math.cos((normalizedAngle - 270) * Math.PI / 180) ** 2;
+    }
+    // else right side = Z-Tilt
+
+    const tiltBlend = 1 - elevateBlend;
+
+    // Speed magnitude
+    const speed = magnitude * 0.1;
+
+    // Determine direction based on angle
+    // For Z-Elevate: up (90°) = forward, down (270°) = backward
+    // For Z-Tilt: right (0°) = forward, left (180°) = backward
+    const elevateDirection = Math.sin(normalizedAngle * Math.PI / 180); // positive up, negative down
+    const tiltDirection = Math.cos(normalizedAngle * Math.PI / 180); // positive right, negative left
+
+    let deltaElevate = 0;
+    let deltaTilt = 0;
+
+    if(elevateBlend > 0.1){
+      // Z-Elevate: both angles move together
+      deltaElevate = speed * elevateBlend * elevateDirection;
+    }
+
+    if(tiltBlend > 0.1){
+      // Z-Tilt: angles move oppositely
+      deltaTilt = speed * tiltBlend * tiltDirection;
+    }
+
+    // Apply combined movement
+    let newAngle1 = state.angle1 + deltaElevate + deltaTilt;
+    let newAngle2 = state.angle2 + deltaElevate - deltaTilt;
+
+    newAngle1 = constrainAngle1(newAngle1);
+    newAngle2 = constrainAngle2(newAngle2);
+
+    state.angle1 = newAngle1;
+    state.angle2 = newAngle2;
+    updateDisplays();
+  }
+
   // Continuous frame timer to record graph data
   function frameTimer(){
     recordGraphData();
+
+    // Apply joystick movement continuously if being dragged
+    if(joystick.isDragging){
+      applyJoystickMovement();
+    }
+
+    // Apply smooth movement towards saved position
+    if(state.movingTowards && state.targetAngle1 !== null && state.targetAngle2 !== null){
+      const speed = 0.08; // degrees per frame (slower animation)
+      const angle1Diff = state.targetAngle1 - state.angle1;
+      const angle2Diff = state.targetAngle2 - state.angle2;
+      const distance = Math.hypot(angle1Diff, angle2Diff);
+
+      if(distance < 0.1){
+        // Reached target
+        state.angle1 = state.targetAngle1;
+        state.angle2 = state.targetAngle2;
+        state.movingTowards = null;
+        state.targetAngle1 = null;
+        state.targetAngle2 = null;
+        updateDisplays();
+      } else {
+        // Move towards target
+        const stepDistance = Math.min(speed, distance);
+        const angle1Step = (angle1Diff / distance) * stepDistance;
+        const angle2Step = (angle2Diff / distance) * stepDistance;
+
+        state.angle1 = constrainAngle1(state.angle1 + angle1Step);
+        state.angle2 = constrainAngle2(state.angle2 + angle2Step);
+        updateDisplays();
+      }
+    }
+
     draw();
     requestAnimationFrame(frameTimer);
   }
@@ -771,6 +1090,22 @@ function drawOscilloscope(){
     }
   }
 
+  // Update joystick knob position
+  function updateJoystickKnob(px, py){
+    const dx = px - joystick.x;
+    const dy = py - joystick.y;
+    const distance = Math.hypot(dx, dy);
+
+    if(distance > joystick.radius){
+      // Clamp to radius
+      joystick.knobX = (dx / distance) * joystick.radius;
+      joystick.knobY = (dy / distance) * joystick.radius;
+    } else {
+      joystick.knobX = dx;
+      joystick.knobY = dy;
+    }
+  }
+
   function onPointerMove(evt){
     const rect = canvas.getBoundingClientRect();
     const px = evt.clientX - rect.left;
@@ -779,6 +1114,48 @@ function drawOscilloscope(){
     // Track cursor position for debug visualization
     state.cursorX = px;
     state.cursorY = py;
+
+    // Handle position marker dragging on phase graph
+    if(state.draggingPosition){
+      const { min: angle1Min, max: angle1Max } = getAngle1Limits();
+      const { min: angle2Min, max: angle2Max } = getAngle2Limits();
+      const angle1Range = angle1Max - angle1Min;
+      const angle2Range = angle2Max - angle2Min;
+      const marginFactor = 0.05;
+      const angle1MarginMin = angle1Min - (angle1Range * marginFactor);
+      const angle1MarginMax = angle1Max + (angle1Range * marginFactor);
+      const angle2MarginMin = angle2Min - (angle2Range * marginFactor);
+      const angle2MarginMax = angle2Max + (angle2Range * marginFactor);
+      const angle1RangeWithMargin = angle1MarginMax - angle1MarginMin;
+      const angle2RangeWithMargin = angle2MarginMax - angle2MarginMin;
+
+      const plotX = canvas.clientWidth - 320;
+      const plotY = 235;
+      const plotWidth = 300;
+      const plotHeight = 200;
+
+      // Convert screen coords back to angle coords
+      const xRatio = (px - plotX) / plotWidth;
+      const yRatio = (plotY + plotHeight - py) / plotHeight;
+      const newAngle1 = angle1MarginMin + (xRatio * angle1RangeWithMargin);
+      const newAngle2 = angle2MarginMin + (yRatio * angle2RangeWithMargin);
+
+      if(state.draggingPosition === 'position1'){
+        state.position1.angle1 = Math.max(angle1MarginMin, Math.min(angle1MarginMax, newAngle1));
+        state.position1.angle2 = Math.max(angle2MarginMin, Math.min(angle2MarginMax, newAngle2));
+      } else if(state.draggingPosition === 'position2'){
+        state.position2.angle1 = Math.max(angle1MarginMin, Math.min(angle1MarginMax, newAngle1));
+        state.position2.angle2 = Math.max(angle2MarginMin, Math.min(angle2MarginMax, newAngle2));
+      }
+      draw();
+      return;
+    }
+
+    // Handle joystick movement
+    if(joystick.isDragging){
+      updateJoystickKnob(px, py);
+      return;
+    }
 
     const midEnd = middleEnd();
     const seatEndPt = seatEnd();
@@ -817,7 +1194,7 @@ function drawOscilloscope(){
           changed = true;
         }
       } else if(state.dragging === 'angle2'){
-        const pivot = midEnd;
+        const pivot = middleEnd();
         const dx = px - pivot.x;
         const dy = py - pivot.y;
         let deg = r2d(Math.atan2(dy, dx));
@@ -843,12 +1220,84 @@ function drawOscilloscope(){
     const px = evt.clientX - rect.left;
     const py = evt.clientY - rect.top;
 
+    // Check if clicking on position markers in phase graph
+    const { min: angle1Min, max: angle1Max } = getAngle1Limits();
+    const { min: angle2Min, max: angle2Max } = getAngle2Limits();
+    const angle1Range = angle1Max - angle1Min;
+    const angle2Range = angle2Max - angle2Min;
+    const marginFactor = 0.05;
+    const angle1MarginMin = angle1Min - (angle1Range * marginFactor);
+    const angle1MarginMax = angle1Max + (angle1Range * marginFactor);
+    const angle2MarginMin = angle2Min - (angle2Range * marginFactor);
+    const angle2MarginMax = angle2Max + (angle2Range * marginFactor);
+    const angle1RangeWithMargin = angle1MarginMax - angle1MarginMin;
+    const angle2RangeWithMargin = angle2MarginMax - angle2MarginMin;
+
+    const plotX = canvas.clientWidth - 320;
+    const plotY = 235;
+    const plotWidth = 300;
+    const plotHeight = 200;
+
+    function screenToData(sx, sy){
+      const xRatio = (sx - plotX) / plotWidth;
+      const yRatio = (plotY + plotHeight - sy) / plotHeight;
+      return {
+        angle1: angle1MarginMin + (xRatio * angle1RangeWithMargin),
+        angle2: angle2MarginMin + (yRatio * angle2RangeWithMargin)
+      };
+    }
+
+    function dataToScreen(angle1, angle2){
+      const xRatio = (angle1 - angle1MarginMin) / angle1RangeWithMargin;
+      const x = plotX + (xRatio * plotWidth);
+      const yRatio = (angle2 - angle2MarginMin) / angle2RangeWithMargin;
+      const y = plotY + plotHeight - (yRatio * plotHeight);
+      return { x, y };
+    }
+
+    // Check distance to position1
+    const pos1Screen = dataToScreen(state.position1.angle1, state.position1.angle2);
+    const dist1 = Math.hypot(px - pos1Screen.x, py - pos1Screen.y);
+    if(dist1 < 10 && px >= plotX && px <= plotX + plotWidth && py >= plotY && py <= plotY + plotHeight){
+      state.draggingPosition = 'position1';
+      canvas.setPointerCapture && canvas.setPointerCapture(evt.pointerId);
+      draw();
+      return;
+    }
+
+    // Check distance to position2
+    const pos2Screen = dataToScreen(state.position2.angle1, state.position2.angle2);
+    const dist2 = Math.hypot(px - pos2Screen.x, py - pos2Screen.y);
+    if(dist2 < 10 && px >= plotX && px <= plotX + plotWidth && py >= plotY && py <= plotY + plotHeight){
+      state.draggingPosition = 'position2';
+      canvas.setPointerCapture && canvas.setPointerCapture(evt.pointerId);
+      draw();
+      return;
+    }
+
     // Check if a button was clicked
     const buttonClicked = getButtonAtPoint(px, py);
     if(buttonClicked){
       if(buttonClicked === 'canvasCheckbox'){
         // Toggle checkbox
         canvasCheckbox.checked = !canvasCheckbox.checked;
+        draw();
+      } else if(buttonClicked === 'joystick'){
+        // Start joystick drag
+        joystick.isDragging = true;
+        canvas.setPointerCapture && canvas.setPointerCapture(evt.pointerId);
+        updateJoystickKnob(px, py);
+      } else if(buttonClicked === 'pos1'){
+        // Start animating towards position1
+        state.movingTowards = 'position1';
+        state.targetAngle1 = constrainAngle1(state.position1.angle1);
+        state.targetAngle2 = constrainAngle2(state.position1.angle2);
+        draw();
+      } else if(buttonClicked === 'pos2'){
+        // Start animating towards position2
+        state.movingTowards = 'position2';
+        state.targetAngle1 = constrainAngle1(state.position2.angle1);
+        state.targetAngle2 = constrainAngle2(state.position2.angle2);
         draw();
       } else {
         state.buttonHeld = buttonClicked;
@@ -867,8 +1316,37 @@ function drawOscilloscope(){
 
   function onPointerUp(evt){
     state.dragging = null;
+
+    // Update position inputs if we were dragging a position marker
+    if(state.draggingPosition){
+      updatePositionInputs();
+    }
+    state.draggingPosition = null;
     state.buttonHeld = null;
     state.buttonFrameCounter = 0;
+
+    // Cancel movement towards position when user interacts elsewhere
+    if(state.movingTowards && evt.target === canvas){
+      // Only cancel if clicking on canvas (not on other elements)
+      const rect = canvas.getBoundingClientRect();
+      const px = evt.clientX - rect.left;
+      const py = evt.clientY - rect.top;
+      const buttonClicked = getButtonAtPoint(px, py);
+      // Only cancel if NOT clicking a position button
+      if(buttonClicked !== 'pos1' && buttonClicked !== 'pos2'){
+        state.movingTowards = null;
+        state.targetAngle1 = null;
+        state.targetAngle2 = null;
+      }
+    }
+
+    // Release joystick
+    if(joystick.isDragging){
+      joystick.isDragging = false;
+      joystick.knobX = 0;
+      joystick.knobY = 0;
+    }
+
     canvas.releasePointerCapture && canvas.releasePointerCapture(evt.pointerId);
     draw();
   }
@@ -879,6 +1357,14 @@ function drawOscilloscope(){
     angle2Display.textContent = `${state.angle2.toFixed(1)}°`;
   }
 
+  // Update position input fields
+  function updatePositionInputs(){
+    pos1Angle1Input.value = state.position1.angle1.toFixed(1);
+    pos1Angle2Input.value = state.position1.angle2.toFixed(1);
+    pos2Angle1Input.value = state.position2.angle1.toFixed(1);
+    pos2Angle2Input.value = state.position2.angle2.toFixed(1);
+  }
+
   // Wire events
   function addListeners(){
     canvas.addEventListener('pointermove', onPointerMove);
@@ -886,6 +1372,24 @@ function drawOscilloscope(){
     window.addEventListener('pointerup', onPointerUp);
 
     window.addEventListener('resize', resizeCanvas);
+
+    // Position input listeners
+    pos1Angle1Input.addEventListener('change', () => {
+      state.position1.angle1 = parseFloat(pos1Angle1Input.value) || state.position1.angle1;
+      draw();
+    });
+    pos1Angle2Input.addEventListener('change', () => {
+      state.position1.angle2 = parseFloat(pos1Angle2Input.value) || state.position1.angle2;
+      draw();
+    });
+    pos2Angle1Input.addEventListener('change', () => {
+      state.position2.angle1 = parseFloat(pos2Angle1Input.value) || state.position2.angle1;
+      draw();
+    });
+    pos2Angle2Input.addEventListener('change', () => {
+      state.position2.angle2 = parseFloat(pos2Angle2Input.value) || state.position2.angle2;
+      draw();
+    });
   }
 
   // Initialize
