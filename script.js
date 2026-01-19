@@ -395,8 +395,8 @@ function draw(){
     { label: 'Act-2', buttons: ['act2Down', 'act2Up'] },
     { label: 'Act-1-then-2', buttons: ['z1Down', 'z1Up'] },
     { label: 'Act-2-then-1', buttons: ['z2Down', 'z2Up'] },
-    { label: 'Z-Sum-Const', buttons: ['zElevateDown', 'zElevateUp'] },
-    { label: 'Z-Diff-Const', buttons: ['zTiltDown', 'zTiltUp'] },
+    { label: 'Z-Diff-Const', buttons: ['zElevateDown', 'zElevateUp'] },
+    { label: 'Z-Sum-Const', buttons: ['zTiltDown', 'zTiltUp'] },
   ];
 
   actuatorGroups.forEach(group => {
@@ -531,16 +531,16 @@ function drawJoystick(){
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
   ctx.fillStyle = '#666';
-  ctx.fillText('▶ SUM', j.x, j.y - j.radius - 8);
-  ctx.fillText('◀ SUM', j.x, j.y + j.radius + 12);
+  ctx.fillText('▶ Diff', j.x, j.y - j.radius - 8);
+  ctx.fillText('◀ Diff', j.x, j.y + j.radius + 12);
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText('◀ DIFF', j.x - j.radius - 30, j.y);
+  ctx.fillText('◀ Sum', j.x - j.radius - 30, j.y);
 
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
-  ctx.fillText('▶ DIFF', j.x + j.radius + 30, j.y);
+  ctx.fillText('▶ Sum', j.x + j.radius + 30, j.y);
 }
 
 function drawOscilloscope(){
