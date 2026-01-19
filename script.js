@@ -86,7 +86,7 @@
 
   // Canvas checkbox
   const canvasCheckbox = {
-    x: 260,
+    x: 230,
     y: 475,
     size: 15,
     label: 'Allow Limited Movement',
@@ -95,8 +95,8 @@
 
   // Joystick configuration
   const joystick = {
-    x: 290,
-    y: 480,
+    x: 300,
+    y: 400,
     radius: 40,
     knobRadius: 12,
     knobX: 0,
@@ -524,7 +524,23 @@ function drawJoystick(){
   ctx.font = '10px system-ui,Segoe UI,Roboto,Arial';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  ctx.fillText('Joystick', j.x, j.y + j.radius + 8);
+  ctx.fillText('Joystick', j.x, j.y + j.radius + 12);
+
+  // Draw axis labels
+  ctx.font = '9px system-ui,Segoe UI,Roboto,Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillStyle = '#666';
+  ctx.fillText('▶ SUM', j.x, j.y - j.radius - 8);
+  ctx.fillText('◀ SUM', j.x, j.y + j.radius + 12);
+
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('◀ DIFF', j.x - j.radius - 30, j.y);
+
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('▶ DIFF', j.x + j.radius + 30, j.y);
 }
 
 function drawOscilloscope(){
@@ -833,20 +849,21 @@ function drawAngle1Vs2(){
     // Normalize angle to 0-360
     const normalizedAngle = (angle + 360) % 360;
 
-    // Z-Elevate is at 90° (up) and 270° (down), Z-Tilt is at 0°/180° (left/right)
-    // Calculate blend factor: 1 = full Z-Elevate, 0 = full Z-Tilt
+    // Z-Elevate (SUM: up/down maintains angle sum) is at 90° (up) and 270° (down)
+    // Z-Tilt (DIFF: left/right maintains angle difference) is at 0°/180° (left/right)
+    // Calculate blend factor: 1 = full Z-Elevate (sum), 0 = full Z-Tilt (diff)
     let elevateBlend = 0;
     if(normalizedAngle >= 45 && normalizedAngle <= 135){
-      // Upper half - Z-Elevate dominance
+      // Upper half - Z-Elevate (SUM) dominance
       elevateBlend = Math.cos((normalizedAngle - 90) * Math.PI / 180) ** 2;
     } else if(normalizedAngle > 135 && normalizedAngle < 225){
       // Left side - transitioning
       elevateBlend = Math.sin((normalizedAngle - 180) * Math.PI / 180) ** 2;
     } else if(normalizedAngle >= 225 && normalizedAngle <= 315){
-      // Lower half - Z-Elevate dominance (for down direction)
+      // Lower half - Z-Elevate (SUM) dominance (for down direction)
       elevateBlend = Math.cos((normalizedAngle - 270) * Math.PI / 180) ** 2;
     }
-    // else right side = Z-Tilt
+    // else right side = Z-Tilt (DIFF)
 
     const tiltBlend = 1 - elevateBlend;
 
@@ -854,8 +871,8 @@ function drawAngle1Vs2(){
     const speed = magnitude * 0.1;
 
     // Determine direction based on angle
-    // For Z-Elevate: up (90°) = forward, down (270°) = backward
-    // For Z-Tilt: right (0°) = forward, left (180°) = backward
+    // For Z-Elevate (SUM): up (90°) = forward, down (270°) = backward
+    // For Z-Tilt (DIFF): right (0°) = forward, left (180°) = backward
     const elevateDirection = Math.sin(normalizedAngle * Math.PI / 180); // positive up, negative down
     const tiltDirection = Math.cos(normalizedAngle * Math.PI / 180); // positive right, negative left
 
@@ -863,12 +880,12 @@ function drawAngle1Vs2(){
     let deltaTilt = 0;
 
     if(elevateBlend > 0.1){
-      // Z-Elevate: both angles move together
+      // Z-Elevate (SUM): both angles move together
       deltaElevate = speed * elevateBlend * elevateDirection;
     }
 
     if(tiltBlend > 0.1){
-      // Z-Tilt: angles move oppositely
+      // Z-Tilt (DIFF): angles move oppositely
       deltaTilt = speed * tiltBlend * tiltDirection;
     }
 
