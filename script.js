@@ -21,6 +21,9 @@
   const pos2Angle1Input = document.getElementById('pos2-angle1');
   const pos2Angle2Input = document.getElementById('pos2-angle2');
 
+  // Clear graph button
+  const clearGraphBtn = document.getElementById('clear-graph-btn');
+
   // Layout / geometry
   const config = {
     basePivot: { x: 240, y: 360 }, // will be repositioned on resize
@@ -423,17 +426,18 @@ function draw(){
   drawAngle1Vs2();
 
   // Draw position buttons
-  drawButton(buttons.pos1, false);
-  drawButton(buttons.pos2, false);
+  drawButton(buttons.pos1, false, '#00cc00');
+  drawButton(buttons.pos2, false, '#ff8a65');
 
   ctx.textAlign = 'left';
 }
 
-function drawButton(btn, isPressed){
-  const bgColor = isPressed ? '#1e5ab0' : '#2b7cff';
+function drawButton(btn, isPressed, bgColor = null){
+  const defaultBgColor = isPressed ? '#1e5ab0' : '#2b7cff';
+  const finalBgColor = bgColor || defaultBgColor;
   const textColor = isPressed ? '#e0e0e0' : '#fff';
 
-  ctx.fillStyle = bgColor;
+  ctx.fillStyle = finalBgColor;
   ctx.fillRect(btn.x, btn.y, btn.width, btn.height);
 
   ctx.strokeStyle = '#000';
@@ -782,7 +786,7 @@ function drawAngle1Vs2(){
 
   const pos2Screen = dataToScreen(state.position2.angle1, state.position2.angle2);
   if(pos2Screen.x >= plotX && pos2Screen.x <= plotX + plotWidth && pos2Screen.y >= plotY && pos2Screen.y <= plotY + plotHeight){
-    ctx.fillStyle = '#0066ff';
+    ctx.fillStyle = '#ff8a65';
     ctx.beginPath();
     ctx.arc(pos2Screen.x, pos2Screen.y, 5, 0, Math.PI*2);
     ctx.fill();
@@ -1384,6 +1388,14 @@ function drawAngle1Vs2(){
     });
     pos2Angle2Input.addEventListener('change', () => {
       state.position2.angle2 = parseFloat(pos2Angle2Input.value) || state.position2.angle2;
+      draw();
+    });
+
+    // Clear graph button listener
+    clearGraphBtn.addEventListener('click', () => {
+      graphData.dataPoints = [];
+      graphData.startTime = Date.now();
+      graphData.lastRecordTime = 0;
       draw();
     });
   }
