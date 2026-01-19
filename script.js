@@ -30,6 +30,17 @@
     middleLength: 180,
     seatPanLength: 160,
     hoverThreshold: 12,
+    slider: {
+      x: 250,       // X position of the slider
+      y: 559,      // Y position of the slider (below the Z-frame)
+      width: 100,  // Total width of the slider
+      height: 8,   // Height of the slider bar
+      handleRadius: 12, // Radius of the draggable handle
+      min: 10,     // Minimum slider value (10%)
+      max: 200,    // Maximum slider value (200%)
+    },
+    seatPanPoints: [0.25, 0.5, 0.75], // Points at 25%, 50%, 75% along the seat pan
+    maxTrailLength: 100, // Maximum number of positions to retain per trail
   };
 
   // State
@@ -49,6 +60,12 @@
     movingTowards: null, // 'position1' | 'position2' | null - animating towards saved position
     targetAngle1: null,
     targetAngle2: null,
+    maintainRatioStartAngle1: null,
+    maintainRatioStartAngle2: null,
+    sliderValue: 80,  // Initial slider value (80%)
+    draggingSlider: false, // Whether the slider is being dragged
+    angleMultiplier : 0.80,
+    seatPanTrails: config.seatPanPoints.map(() => []),
   };
 
   // Graph/oscilloscope data tracking
@@ -82,6 +99,9 @@
 
     pos1: { x: 90, y: 520, width: 60, height: 25, label: 'Pos 1', group: 'Position' },
     pos2: { x: 160, y: 520, width: 60, height: 25, label: 'Pos 2', group: 'Position' },
+
+    maintainRatioDown: { x: 90, y: 550, width: 60, height: 25, label: '% Down' },
+    maintainRatioUp: { x: 160, y: 550, width: 60, height: 25, label: '% Up' },
   };
 
   // Canvas checkbox
@@ -152,9 +172,117 @@
         buttonAction: state.buttonHeld || null
       });
 
+      // Record positions of points along the seat pan
+      const trails = state.seatPanTrails;
+      const mid = middleEnd(); // Middle pivot point
+      const seatEndPt = seatEnd(); // End of seat pan
+      const direction = Math.atan2(seatEndPt.y - mid.y, seatEndPt.x - mid.x);
+
+      config.seatPanPoints.forEach((percent, index) => {
+        const x = mid.x + config.seatPanLength * percent * Math.cos(direction);
+        const y = mid.y + config.seatPanLength * percent * Math.sin(direction);
+        trails[index].push({ x, y });
+
+        // Limit trail length
+        if(trails[index].length > config.maxTrailLength){
+          trails[index].shift();
+        }
+      });
+
       // Remove old data points outside 30 second window
       graphData.dataPoints = graphData.dataPoints.filter(p => p.time > elapsed - graphData.maxDuration);
+
     }
+  }
+
+  function drawSlider(){
+    const slider = config.slider;
+    const valueRatio = (state.sliderValue - slider.min) / (slider.max - slider.min); // Normalize value (0-1)
+
+    // Draw the slider bar
+    ctx.fillStyle = '#ccc'; // Background color for the slider bar
+    ctx.fillRect(slider.x, slider.y, slider.width, slider.height);
+
+    // Draw the slider handle
+    const handleX = slider.x + valueRatio * slider.width; // Handle position based on value
+    const handleY = slider.y + slider.height / 2;
+    ctx.beginPath();
+    ctx.arc(handleX, handleY, slider.handleRadius, 0, Math.PI * 2);
+    ctx.fillStyle = state.draggingSlider ? '#2b7cff' : '#666'; // Highlight handle if dragged
+    ctx.fill();
+
+    // Draw the slider value label
+    ctx.fillStyle = '#000';
+    ctx.font = '14px Arial';
+    ctx.fillText(`${state.sliderValue.toFixed(0)}%`, slider.x + slider.width + 20, slider.y + slider.height / 2 + 4);
+  }
+
+  function drawSeatPanTrails(){
+    const trails = state.seatPanTrails;
+    ctx.lineWidth = 2;
+
+    // Draw each trail
+    trails.forEach((trail, i) => {
+      if(trail.length < 2) return; // Need at least 2 points to draw a trail
+
+      // Draw the trail
+      ctx.strokeStyle = `rgba(0, 150, 200, ${(i + 1) / trails.length})`; // Adjust opacity per trail
+      ctx.beginPath();
+      ctx.moveTo(trail[0].x, trail[0].y);
+      for(let j = 1; j < trail.length; j++){
+        ctx.lineTo(trail[j].x, trail[j].y);
+      }
+      ctx.stroke();
+
+      // Draw the current point
+      const { x, y } = trail[trail.length - 1];
+      ctx.fillStyle = '#0096c8';
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2); // Smaller dot
+      ctx.fill();
+    });
+  }
+
+  function drawGrid(){
+    const spacing = 40; // Distance between grid lines (in pixels)
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+
+    // Set grid style
+    ctx.strokeStyle = '#e0e0e0'; // Light gray for grid lines
+    ctx.lineWidth = 1;
+
+    // Draw vertical grid lines
+    for (let x = 0; x <= w; x += spacing) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    }
+
+    // Draw horizontal grid lines
+    for (let y = 0; y <= h; y += spacing) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+
+    // Highlight the X and Y axes
+    ctx.strokeStyle = '#b0b0b0'; // Darker gray for axes
+    ctx.lineWidth = 2;
+
+    // Y-axis (vertical line through the base pivot's X-coordinate)
+    ctx.beginPath();
+    ctx.moveTo(config.basePivot.x, 0);
+    ctx.lineTo(config.basePivot.x, h);
+    ctx.stroke();
+
+    // X-axis (horizontal line through the base pivot's Y-coordinate)
+    ctx.beginPath();
+    ctx.moveTo(0, config.basePivot.y);
+    ctx.lineTo(w, config.basePivot.y);
+    ctx.stroke();
   }
 
   function drawAngleArc(pivotX, pivotY, startDeg, endDeg, radius, color, labelText, isAtLimit = false) {
@@ -266,9 +394,13 @@ function draw(){
   const h = canvas.clientHeight;
   ctx.clearRect(0,0,w,h);
 
+  
+
   // background
   ctx.fillStyle = '#fff';
   ctx.fillRect(0,0,w,h);
+
+  drawGrid();
 
   // base line
   ctx.strokeStyle = '#333';
@@ -383,11 +515,19 @@ function draw(){
   const seatPanAbsoluteAngle = (state.angle1 - state.angle2) % 360;
   ctx.fillText(`Seat pan (absolute): ${seatPanAbsoluteAngle.toFixed(1)}°`, 90, 60);
 
+  let minHeight = Math.sin(d2r(angle1Min));
+  let maxHeight = Math.sin(d2r(angle1Max));
+  let preHeight = Math.sin(d2r(state.angle1));
+
+  ctx.fillText(`Height: ${(((preHeight-minHeight)/(maxHeight-minHeight))*100).toFixed(1)}%`, 90, 80);
+
   // formula display
   if(state.formulaExpr){
     ctx.fillStyle = '#444';
     ctx.fillText(`Formula: ${state.formulaExpr}`, 14, 80);
   }
+
+
 
   // Draw actuator buttons with labels
   const actuatorGroups = [
@@ -411,6 +551,8 @@ function draw(){
     // Draw buttons
     buttons[group.buttons[0]] && drawButton(buttons[group.buttons[0]], state.buttonHeld === group.buttons[0]);
     buttons[group.buttons[1]] && drawButton(buttons[group.buttons[1]], state.buttonHeld === group.buttons[1]);
+
+    drawSeatPanTrails();
   });
 
   // Draw canvas checkbox
@@ -429,6 +571,10 @@ function draw(){
   drawButton(buttons.pos1, false, '#00cc00');
   drawButton(buttons.pos2, false, '#ff8a65');
 
+  drawButton(buttons.maintainRatioDown, state.buttonHeld === 'maintainRatioDown');
+  drawButton(buttons.maintainRatioUp, state.buttonHeld === 'maintainRatioUp');
+
+  drawSlider(); // Draw the slider
   ctx.textAlign = 'left';
 }
 
@@ -832,6 +978,14 @@ function drawAngle1Vs2(){
         return key;
       }
     }
+
+    for (const [key, btn] of Object.entries(buttons)) {
+      if (px >= btn.x && px <= btn.x + btn.width &&
+        py >= btn.y && py <= btn.y + btn.height) {
+        return key;
+      }
+    }
+
     return null;
   }
 
@@ -1089,6 +1243,24 @@ function drawAngle1Vs2(){
             }
           }
         }
+        else if (state.buttonHeld === 'maintainRatioUp' || state.buttonHeld === 'maintainRatioDown') {
+          const delta = state.buttonHeld === 'maintainRatioUp' ? 0.5 : -0.5; // Increment or decrement
+
+          // Calculate the new angles based on the starting values and delta
+          const adjustedAngle1 = state.angle1 + delta; // Increment/decrement angle1
+          const adjustedAngle2 = state.angle2 + delta * -state.angleMultiplier; // Compute corresponding change in angle2
+
+          // Apply constraints
+          const newAngle1 = constrainAngle1(adjustedAngle1);
+          const newAngle2 = constrainAngle2(adjustedAngle2);
+
+          // Update angles if they have changed
+          if (Math.abs(newAngle1 - state.angle1) > 0.01 || Math.abs(newAngle2 - state.angle2) > 0.01) {
+            state.angle1 = newAngle1;
+            state.angle2 = newAngle2;
+            updateDisplays();
+          }
+        }
         // Z-Tilt controls angles oppositely (maintaining their sum)
         else if(state.buttonHeld === 'zTiltUp' || state.buttonHeld === 'zTiltDown'){
           let newAngle1 = state.angle1 + delta;
@@ -1185,6 +1357,17 @@ function drawAngle1Vs2(){
       }
       draw();
       return;
+    }
+
+    // If dragging the slider, update the value
+    if(state.draggingSlider){
+      const slider = config.slider;
+      const clampedX = Math.max(slider.x, Math.min(px, slider.x + slider.width)); // Clamp position
+      const valueRatio = (clampedX - slider.x) / slider.width; // Normalize (0-1)
+      state.sliderValue = slider.min + valueRatio * (slider.max - slider.min); // Map to slider range
+      state.angleMultiplier = state.sliderValue / 100; // Update the multiplier
+
+      draw(); // Redraw to reflect changes
     }
 
     // Handle joystick movement
@@ -1314,7 +1497,16 @@ function drawAngle1Vs2(){
     // Check if a button was clicked
     const buttonClicked = getButtonAtPoint(px, py);
     if(buttonClicked){
-      if(buttonClicked === 'canvasCheckbox'){
+      if (buttonClicked === 'maintainRatioUp' || buttonClicked === 'maintainRatioDown') {
+        state.buttonHeld = buttonClicked;
+        // Record the starting values when the button is first pressed
+        state.maintainRatioStartAngle1 = state.angle1;
+        state.maintainRatioStartAngle2 = state.angle2;
+        draw();
+        updateHeldButton();
+        return; // Exit early since we don't need drag functionality
+      }
+      else if(buttonClicked === 'canvasCheckbox'){
         // Toggle checkbox
         canvasCheckbox.checked = !canvasCheckbox.checked;
         draw();
@@ -1343,6 +1535,19 @@ function drawAngle1Vs2(){
       return;
     }
 
+    // Check if the slider handle is clicked
+    const slider = config.slider;
+    const valueRatio = (state.sliderValue - slider.min) / (slider.max - slider.min);
+    const handleX = slider.x + valueRatio * slider.width;
+    const handleY = slider.y + slider.height / 2;
+
+    const distance = Math.hypot(px - handleX, py - handleY);
+    if(distance <= slider.handleRadius){
+      state.draggingSlider = true;
+      return; // Prevent other interactions while dragging slider
+    }
+
+
     if(state.hovering){
       state.dragging = state.hovering;
       canvas.setPointerCapture && canvas.setPointerCapture(evt.pointerId);
@@ -1352,6 +1557,8 @@ function drawAngle1Vs2(){
 
   function onPointerUp(evt){
     state.dragging = null;
+
+    state.draggingSlider = false;
 
     // Update position inputs if we were dragging a position marker
     if(state.draggingPosition){
