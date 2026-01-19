@@ -896,9 +896,28 @@ function drawAngle1Vs2(){
     newAngle1 = constrainAngle1(newAngle1);
     newAngle2 = constrainAngle2(newAngle2);
 
-    state.angle1 = newAngle1;
-    state.angle2 = newAngle2;
-    updateDisplays();
+    if(canvasCheckbox.checked){
+      // Allow independent movement if one angle hits a limit
+      let changed = false;
+      if(Math.abs(newAngle1 - state.angle1) > 0.01){
+        state.angle1 = newAngle1;
+        changed = true;
+      }
+      if(Math.abs(newAngle2 - state.angle2) > 0.01){
+        state.angle2 = newAngle2;
+        changed = true;
+      }
+      if(changed){
+        updateDisplays();
+      }
+    } else {
+      // Only update if both angles can change
+      if((Math.abs(newAngle1 - state.angle1) > 0.01) && (Math.abs(newAngle2 - state.angle2) > 0.01)){
+        state.angle1 = newAngle1;
+        state.angle2 = newAngle2;
+        updateDisplays();
+      }
+    }
   }
 
   // Continuous frame timer to record graph data
