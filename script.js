@@ -9,8 +9,6 @@
   const angle1Display = document.getElementById('angle1-val');
   const angle2Display = document.getElementById('angle2-val');
 
-  const debugA = document.getElementById('debugA-val');
-
   // Limit input elements
   const angle1MinInput = document.getElementById('angle1-min');
   const angle1MaxInput = document.getElementById('angle1-max');
@@ -176,8 +174,6 @@
 
     if (distance != 0.0)
     {
-
-      debugA.textContent = `${(distance)}°`;
       if (distance <= 180)
       {
         ctx.arc(pivotX, pivotY, radius, sRad, eRad, false);
@@ -370,7 +366,7 @@ function draw(){
     ctx.fillStyle = '#111';
   }
   ctx.font = '14px system-ui,Segoe UI,Roboto,Arial';
-  ctx.fillText(`Middle (angle1): ${state.angle1.toFixed(1)}°`, 14, 20);
+  ctx.fillText(`Middle (angle1): ${state.angle1.toFixed(1)}°`, 90, 20);
 
   // Draw angle2 text
   if(angle2AtLimit){
@@ -378,11 +374,11 @@ function draw(){
   } else {
     ctx.fillStyle = '#111';
   }
-  ctx.fillText(`Seat pan (angle2): ${state.angle2.toFixed(1)}°`, 14, 40);
+  ctx.fillText(`Seat pan (angle2): ${state.angle2.toFixed(1)}°`, 90, 40);
 
   ctx.fillStyle = '#111';
   const seatPanAbsoluteAngle = (state.angle1 - state.angle2) % 360;
-  ctx.fillText(`Seat pan (absolute): ${seatPanAbsoluteAngle.toFixed(1)}°`, 14, 60);
+  ctx.fillText(`Seat pan (absolute): ${seatPanAbsoluteAngle.toFixed(1)}°`, 90, 60);
 
   // formula display
   if(state.formulaExpr){
@@ -938,7 +934,7 @@ function drawAngle1Vs2(){
 
         // Determine which angle to control and the direction
         const isIncrease = state.buttonHeld === 'increase' || state.buttonHeld === 'act1Up' || state.buttonHeld === 'act2Up' || state.buttonHeld === 'z1Up' || state.buttonHeld === 'z2Up' || state.buttonHeld === 'zElevateUp' || state.buttonHeld === 'zTiltUp';
-        const delta = isIncrease ? 0.2 : -0.2;
+        const delta = isIncrease ? 0.4 : -0.4;
 
         // Get limit status
         const { min: angle1Min, max: angle1Max } = getAngle1Limits();

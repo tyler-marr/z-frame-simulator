@@ -10,42 +10,31 @@
   <div class="container">
     <header>
       <h1>Z-frame Wheelchair Simulator</h1>
-      <p>Drag the middle member (angle1) or the seat pan (angle2) to rotate about their pivots. Enter a formula (in degrees) to relate angle1 → angle2, e.g. <code>angle2 = 90 - angle1</code> or <code>angle2 = 0.5 * angle1 + 10</code>.</p>
+      <p>Drag the middle member (angle1) or the seat pan (angle2) to rotate about their pivots.</p>
     </header>
 
     <section class="controls">
       <div class="angles">
         <div>
           Middle (angle1): <span id="angle1-val">0.0°</span>
-          <div class="angle-limits">
-            <label>Min: <input id="angle1-min" type="number" value="5" style="width: 60px;" /></label>
-            <label>Max: <input id="angle1-max" type="number" value="40" style="width: 60px;" /></label>
-          </div>
+          <label>Min: <input id="angle1-min" type="number" value="5" style="width: 60px;" /></label>
+          <label>Max: <input id="angle1-max" type="number" value="40" style="width: 60px;" /></label>
         </div>
         <div>
           Seat pan (angle2): <span id="angle2-val">0.0°</span>
-          <div class="angle-limits">
-            <label>Min: <input id="angle2-min" type="number" value="5" style="width: 60px;" /></label>
-            <label>Max: <input id="angle2-max" type="number" value="40" style="width: 60px;" /></label>
-          </div>
+          <label>Min: <input id="angle2-min" type="number" value="5" style="width: 60px;" /></label>
+          <label>Max: <input id="angle2-max" type="number" value="40" style="width: 60px;" /></label>
         </div>
-        <div>debugA-val: <span id="debugA-val">0.0°</span></div>
-
-        <hr style="margin: 15px 0; border: none; border-top: 1px solid #ccc;" />
-
-        <div style="margin-top: 10px;">
-          <strong>Position 1:</strong>
-          <div class="angle-limits">
-            <label>angle1: <input id="pos1-angle1" type="number" step="0.1" value="15" style="width: 60px;" /></label>
-            <label>angle2: <input id="pos1-angle2" type="number" step="0.1" value="25" style="width: 60px;" /></label>
-          </div>
+        <strong>Position 1:</strong>
+        <div class="angle-limits">
+          <label>angle1: <input id="pos1-angle1" type="number" step="0.1" value="15" style="width: 60px;" /></label>
+          <label>angle2: <input id="pos1-angle2" type="number" step="0.1" value="25" style="width: 60px;" /></label>
         </div>
-        <div style="margin-top: 10px;">
-          <strong>Position 2:</strong>
-          <div class="angle-limits">
-            <label>angle1: <input id="pos2-angle1" type="number" step="0.1" value="35" style="width: 60px;" /></label>
-            <label>angle2: <input id="pos2-angle2" type="number" step="0.1" value="10" style="width: 60px;" /></label>
-          </div>
+        <strong>Position 2:</strong>
+        <div class="angle-limits">
+          <label>angle1: <input id="pos2-angle1" type="number" step="0.1" value="35" style="width: 60px;" /></label>
+          <label>angle2: <input id="pos2-angle2" type="number" step="0.1" value="10" style="width: 60px;" /></label>
+
         </div>
       </div>
     </section>
@@ -53,10 +42,6 @@
     <div class="sim-wrap">
       <canvas id="canvas"></canvas>
     </div>
-
-    <footer>
-      <small>Angle resolution: 0.5°. Formula expressions are evaluated in degrees and may use trig functions (sin/cos/tan) that expect degrees.</small>
-    </footer>
   </div>
 
   <script src="script.js"></script>
