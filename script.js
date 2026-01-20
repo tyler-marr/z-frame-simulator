@@ -41,7 +41,7 @@
     hoverThreshold: 12,
     slider: {
       x: 120,       // X position of the slider
-      y: 400,      // Y position of the slider (below the Z-frame)
+      y: 460,      // Y position of the slider (below the Z-frame)
       width: 100,  // Total width of the slider
       height: 8,   // Height of the slider bar
       handleRadius: 12, // Radius of the draggable handle
@@ -63,8 +63,11 @@
     buttonFrameCounter: 0, // counter to slow down button movement
     cursorX: 0,
     cursorY: 0,
-    position1: { angle1: 15, angle2: 25 }, // draggable point 1 on phase graph
-    position2: { angle1: 35, angle2: 10 }, // draggable point 2 on phase graph
+    positions:{
+      position1: { angle1: 15, angle2: 25 }, // draggable point 1 on phase graph
+      position2: { angle1: 35, angle2: 10 }, // draggable point 2 on phase graph
+    },
+    
     draggingPosition: null, // 'position1' | 'position2' | null
     movingTowards: null, // 'position1' | 'position2' | null - animating towards saved position
     targetAngle1: null,
@@ -93,6 +96,13 @@
 
   // Button configuration
   const buttons = {
+    pos1: { x:  90, y:  0, width: 60, height: 25, label: 'Pos1', group: 'Position', colour: '#FF728E' },
+    pos2: { x: 160, y:  0, width: 60, height: 25, label: 'Pos2', group: 'Position', colour: '#FF9671' },
+    pos3: { x:  90, y: 10, width: 60, height: 25, label: 'Pos3', group: 'Position', colour: '#FFD371' },
+    pos4: { x: 160, y: 10, width: 60, height: 25, label: 'Pos4', group: 'Position', colour: '#8EFF8C' },
+    pos5: { x:  90, y: 20, width: 60, height: 25, label: 'Pos5', group: 'Position', colour: '#6EC9FF' },
+    pos6: { x: 160, y: 20, width: 60, height: 25, label: 'Pos6', group: 'Position', colour: '#C382FF' },
+
     act1Down: { x: 90, y: 340, width: 60, height: 25, label: '◀', group: 'Act-1' },
     act1Up: { x: 160, y: 340, width: 60, height: 25, label: '▶', group: 'Act-1' },
 
@@ -111,17 +121,14 @@
     zTiltDown: { x: 90, y: 490, width: 60, height: 25, label: '◀', group: 'Z-Tilt' },
     zTiltUp: { x: 160, y: 490, width: 60, height: 25, label: '▶', group: 'Z-Tilt' },
 
-    pos1: { x: 90, y: 520, width: 60, height: 25, label: 'Pos 1', group: 'Position' },
-    pos2: { x: 160, y: 520, width: 60, height: 25, label: 'Pos 2', group: 'Position' },
-
-    maintainRatioDown: { x: 90, y: 550, width: 60, height: 25, label: '% Down' },
-    maintainRatioUp: { x: 160, y: 550, width: 60, height: 25, label: '% Up' },
+    maintainRatioDown: { x: 90, y: 550, width: 60, height: 25, label: '◀' },
+    maintainRatioUp: { x: 160, y: 550, width: 60, height: 25, label: '▶' },
   };
 
   // Canvas checkbox
   const canvasCheckbox = {
     x: 250,
-    y: 350,
+    y: 380,
     size: 15,
     label: 'Allow Limited Movement',
     checked: true
@@ -130,7 +137,7 @@
     // Canvas checkbox
   const imageCheckbox = {
     x: 250,
-    y: 450,
+    y: 600,
     size: 15,
     label: 'Draw Chair',
     checked: false
@@ -139,7 +146,7 @@
   // Joystick configuration
   const joystick = {
     x: 172,
-    y: 510,
+    y: 540,
     radius: 40,
     knobRadius: 12,
     knobX: 0,
@@ -321,7 +328,7 @@
     // Draw the slider value label
     ctx.fillStyle = '#000';
     ctx.font = '14px Arial';
-    ctx.fillText(`${state.sliderValue.toFixed(0)}%`, slider.x + slider.width + 20, slider.y + slider.height / 2 + 4);
+    ctx.fillText(`${state.sliderValue.toFixed(0)}%`, slider.x + slider.width + 40, slider.y + slider.height / 2);
   }
 
   function drawSeatPanTrails(){
@@ -648,8 +655,10 @@ function draw(){
     { label: 'Act-2-then-1', buttons: ['z2Down', 'z2Up'] },
     { label: 'Z-Diff-Const', buttons: ['zElevateDown', 'zElevateUp'] },
     { label: 'Z-Sum-Const', buttons: ['zTiltDown', 'zTiltUp'] },
+    { label: 'Maintain Ratio', buttons: ['maintainRatioDown', 'maintainRatioUp'] },
   ];
 
+  //just the labels
   actuatorGroups.forEach(group => {
     const btn = buttons[group.buttons[0]];
     // Draw label to the left
@@ -658,13 +667,9 @@ function draw(){
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     ctx.fillText(group.label, btn.x - 8, btn.y + btn.height / 2);
-
-    // Draw buttons
-    buttons[group.buttons[0]] && drawButton(buttons[group.buttons[0]], state.buttonHeld === group.buttons[0]);
-    buttons[group.buttons[1]] && drawButton(buttons[group.buttons[1]], state.buttonHeld === group.buttons[1]);
-
-    drawSeatPanTrails();
   });
+
+  drawSeatPanTrails();
 
   drawButtons();
 
@@ -687,23 +692,52 @@ function draw(){
   drawAngleRelationshipGraph(); // Render the second graph
 
   // Draw angle1 vs angle2 plot
-  drawAngle1Vs2();
+  drawPhaseChart();
 
-  // Draw position buttons
-  drawButton(buttons.pos1, false, '#00cc00');
-  drawButton(buttons.pos2, false, '#ff8a65');
+  // // Draw position buttons
+  // drawButton(buttons.pos1, false, '#00cc00');
+  // drawButton(buttons.pos2, false, '#ff8a65');
 
-  drawButton(buttons.maintainRatioDown, state.buttonHeld === 'maintainRatioDown');
-  drawButton(buttons.maintainRatioUp, state.buttonHeld === 'maintainRatioUp');
+  // drawButton(buttons.maintainRatioDown, state.buttonHeld === 'maintainRatioDown');
+  // drawButton(buttons.maintainRatioUp, state.buttonHeld === 'maintainRatioUp');
 
   drawSlider(); // Draw the slider
   ctx.textAlign = 'left';
 }
 
+function LightenDarkenColor(hex, amount) {
+  let usePound = false;
+  if (hex[0] === "#") {
+    hex = hex.slice(1);
+    usePound = true;
+  }
+
+  // Handle 3-digit hex codes
+  if (hex.length === 3) {
+    hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+  }
+
+  let num = parseInt(hex, 16);
+  let r = (num >> 16) + amount;
+  let b = ((num >> 8) & 0x00ff) + amount;
+  let g = (num & 0x0000ff) + amount;
+
+  // Clamp values to stay within 0-255
+  if (r > 255) r = 255;
+  else if (r < 0) r = 0;
+  if (b > 255) b = 255;
+  else if (b < 0) b = 0;
+  if (g > 255) g = 255;
+  else if (g < 0) g = 0;
+
+  // Recombine into hex string
+  return (usePound ? "#" : "") + (g | (b << 8) | (r << 16)).toString(16).padStart(6, '0');
+}
+
 function drawButton(btn, isPressed, bgColor = null){
-  const defaultBgColor = isPressed ? '#1e5ab0' : '#2b7cff';
-  const finalBgColor = bgColor || defaultBgColor;
-  const textColor = isPressed ? '#e0e0e0' : '#fff';
+  const defaultBgColor = bgColor || '#2b7cff';
+  const finalBgColor = isPressed ? LightenDarkenColor(defaultBgColor, -100) : defaultBgColor;
+  const textColor = isPressed ? '#e0e0e0' : '#fff';  
 
   ctx.fillStyle = finalBgColor;
   ctx.fillRect(btn.x, btn.y, btn.width, btn.height);
@@ -735,7 +769,7 @@ function drawButtons(){
     btn.y = y;
 
     // Draw the button
-    drawButton(btn, state.buttonHeld === key);
+    drawButton(btn, state.buttonHeld === key, btn.colour || null);
 
     // Move to the next position
     buttonsInRow++;
@@ -1026,7 +1060,7 @@ function drawOscilloscope(){
   ctx.fillText('seat angle', graphX + 172, legendY);
 }
 
-function drawAngle1Vs2(){
+function drawPhaseChart(){
   // Plot dimensions and position (below oscilloscope)
   const plotX = canvas.clientWidth - 320;
   const plotY = 235;
@@ -1136,7 +1170,7 @@ function drawAngle1Vs2(){
   }
 
   // Draw position markers
-  const pos1Screen = dataToScreen(state.position1.angle1, state.position1.angle2);
+  const pos1Screen = dataToScreen(state.positions.position1.angle1, state.positions.position1.angle2);
   if(pos1Screen.x >= plotX && pos1Screen.x <= plotX + plotWidth && pos1Screen.y >= plotY && pos1Screen.y <= plotY + plotHeight){
     ctx.fillStyle = '#00cc00';
     ctx.beginPath();
@@ -1147,7 +1181,7 @@ function drawAngle1Vs2(){
     ctx.stroke();
   }
 
-  const pos2Screen = dataToScreen(state.position2.angle1, state.position2.angle2);
+  const pos2Screen = dataToScreen(state.positions.position2.angle1, state.positions.position2.angle2);
   if(pos2Screen.x >= plotX && pos2Screen.x <= plotX + plotWidth && pos2Screen.y >= plotY && pos2Screen.y <= plotY + plotHeight){
     ctx.fillStyle = '#ff8a65';
     ctx.beginPath();
@@ -1176,13 +1210,6 @@ function drawAngle1Vs2(){
     const dy = py - joystick.y;
     if(Math.hypot(dx, dy) <= joystick.radius){
       return 'joystick';
-    }
-
-    for(const [key, btn] of Object.entries(buttons)){
-      if(px >= btn.x && px <= btn.x + btn.width &&
-         py >= btn.y && py <= btn.y + btn.height){
-        return key;
-      }
     }
 
     for (const [key, btn] of Object.entries(buttons)) {
@@ -1555,11 +1582,11 @@ function drawAngle1Vs2(){
       const newAngle2 = angle2MarginMin + (yRatio * angle2RangeWithMargin);
 
       if(state.draggingPosition === 'position1'){
-        state.position1.angle1 = Math.max(angle1MarginMin, Math.min(angle1MarginMax, newAngle1));
-        state.position1.angle2 = Math.max(angle2MarginMin, Math.min(angle2MarginMax, newAngle2));
+        state.positions.position1.angle1 = Math.max(angle1MarginMin, Math.min(angle1MarginMax, newAngle1));
+        state.positions.position1.angle2 = Math.max(angle2MarginMin, Math.min(angle2MarginMax, newAngle2));
       } else if(state.draggingPosition === 'position2'){
-        state.position2.angle1 = Math.max(angle1MarginMin, Math.min(angle1MarginMax, newAngle1));
-        state.position2.angle2 = Math.max(angle2MarginMin, Math.min(angle2MarginMax, newAngle2));
+        state.positions.position2.angle1 = Math.max(angle1MarginMin, Math.min(angle1MarginMax, newAngle1));
+        state.positions.position2.angle2 = Math.max(angle2MarginMin, Math.min(angle2MarginMax, newAngle2));
       }
       draw();
       return;
@@ -1681,7 +1708,7 @@ function drawAngle1Vs2(){
     }
 
     // Check distance to position1
-    const pos1Screen = dataToScreen(state.position1.angle1, state.position1.angle2);
+    const pos1Screen = dataToScreen(state.positions.position1.angle1, state.positions.position1.angle2);
     const dist1 = Math.hypot(px - pos1Screen.x, py - pos1Screen.y);
     if(dist1 < 10 && px >= plotX && px <= plotX + plotWidth && py >= plotY && py <= plotY + plotHeight){
       state.draggingPosition = 'position1';
@@ -1691,7 +1718,7 @@ function drawAngle1Vs2(){
     }
 
     // Check distance to position2
-    const pos2Screen = dataToScreen(state.position2.angle1, state.position2.angle2);
+    const pos2Screen = dataToScreen(state.positions.position2.angle1, state.positions.position2.angle2);
     const dist2 = Math.hypot(px - pos2Screen.x, py - pos2Screen.y);
     if(dist2 < 10 && px >= plotX && px <= plotX + plotWidth && py >= plotY && py <= plotY + plotHeight){
       state.draggingPosition = 'position2';
@@ -1727,15 +1754,21 @@ function drawAngle1Vs2(){
       } else if(buttonClicked === 'pos1'){
         // Start animating towards position1
         state.movingTowards = 'position1';
-        state.targetAngle1 = constrainAngle1(state.position1.angle1);
-        state.targetAngle2 = constrainAngle2(state.position1.angle2);
+        state.targetAngle1 = constrainAngle1(state.positions.position1.angle1);
+        state.targetAngle2 = constrainAngle2(state.positions.position1.angle2);
         draw();
       } else if(buttonClicked === 'pos2'){
         // Start animating towards position2
         state.movingTowards = 'position2';
-        state.targetAngle1 = constrainAngle1(state.position2.angle1);
-        state.targetAngle2 = constrainAngle2(state.position2.angle2);
+        state.targetAngle1 = constrainAngle1(state.positions.position2.angle1);
+        state.targetAngle2 = constrainAngle2(state.positions.position2.angle2);
         draw();
+      // } else if(buttonClicked === 'pos3'){
+      //   // Start animating towards position3
+      //   state.movingTowards = 'position3';
+      //   state.targetAngle1 = constrainAngle1(state.position3.angle1);
+      //   state.targetAngle2 = constrainAngle2(state.position3.angle2);
+      //   draw();
       } else {
         state.buttonHeld = buttonClicked;
         draw();
@@ -1811,10 +1844,10 @@ function drawAngle1Vs2(){
 
   // Update position input fields
   function updatePositionInputs(){
-    pos1Angle1Input.value = state.position1.angle1.toFixed(1);
-    pos1Angle2Input.value = state.position1.angle2.toFixed(1);
-    pos2Angle1Input.value = state.position2.angle1.toFixed(1);
-    pos2Angle2Input.value = state.position2.angle2.toFixed(1);
+    pos1Angle1Input.value = state.positions.position1.angle1.toFixed(1);
+    pos1Angle2Input.value = state.positions.position1.angle2.toFixed(1);
+    pos2Angle1Input.value = state.positions.position2.angle1.toFixed(1);
+    pos2Angle2Input.value = state.positions.position2.angle2.toFixed(1);
   }
 
   // Wire events
@@ -1830,19 +1863,19 @@ function drawAngle1Vs2(){
 
     // Position input listeners
     pos1Angle1Input.addEventListener('change', () => {
-      state.position1.angle1 = parseFloat(pos1Angle1Input.value) || state.position1.angle1;
+      state.positions.position1.angle1 = parseFloat(pos1Angle1Input.value) || state.positions.position1.angle1;
       draw();
     });
     pos1Angle2Input.addEventListener('change', () => {
-      state.position1.angle2 = parseFloat(pos1Angle2Input.value) || state.position1.angle2;
+      state.positions.position1.angle2 = parseFloat(pos1Angle2Input.value) || state.positions.position1.angle2;
       draw();
     });
     pos2Angle1Input.addEventListener('change', () => {
-      state.position2.angle1 = parseFloat(pos2Angle1Input.value) || state.position2.angle1;
+      state.positions.position2.angle1 = parseFloat(pos2Angle1Input.value) || state.positions.position2.angle1;
       draw();
     });
     pos2Angle2Input.addEventListener('change', () => {
-      state.position2.angle2 = parseFloat(pos2Angle2Input.value) || state.position2.angle2;
+      state.positions.position2.angle2 = parseFloat(pos2Angle2Input.value) || state.positions.position2.angle2;
       draw();
     });
 
