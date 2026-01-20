@@ -228,8 +228,9 @@
 
     const direction = Math.atan2(seatEndPt.y - mid.y, seatEndPt.x - mid.x); // Rotation angle
 
-    const imageWidth = config.seatPanLength*2; // Stretch or fit the image to match seat pan length
-    const imageHeight = imageWidth * 1; // Adjust height proportionately
+    let imageScaler = config.seatPanLength*2/seatPanImage.width;
+    const imageWidth = seatPanImage.width*imageScaler; // Stretch or fit the image to match seat pan length
+    const imageHeight = seatPanImage.height*imageScaler; // Adjust height proportionately
 
     // Save the canvas state before applying transformations
     ctx.save();
@@ -255,8 +256,9 @@
 
     const direction = Math.atan2(seatEndPt.y - mid.y, seatEndPt.x - mid.x); // Rotation angle
 
-    const imageWidth = config.seatPanLength*2; // Stretch or fit the image to match seat pan length
-    const imageHeight = imageWidth * 1; // Adjust height proportionately
+    let imageScaler = config.seatPanLength*2/backRestImage.width;
+    const imageWidth = backRestImage.width*imageScaler; // Stretch or fit the image to match seat pan length
+    const imageHeight = backRestImage.height*imageScaler; // Adjust height proportionately
 
     // Save the canvas state before applying transformations
     ctx.save();
@@ -281,8 +283,9 @@
     }; // Center position of the seat pan
 
 
-    const imageWidth = config.seatPanLength*2; // Stretch or fit the image to match seat pan length
-    const imageHeight = imageWidth * 1; // Adjust height proportionately
+    let imageScaler = config.seatPanLength*2/wheelBaseImage.width;
+    const imageWidth = wheelBaseImage.width*imageScaler; // Stretch or fit the image to match seat pan length
+    const imageHeight = wheelBaseImage.height*imageScaler; // Adjust height proportionately
 
     // Save the canvas state before applying transformations
     ctx.save();
