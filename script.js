@@ -21,6 +21,15 @@
   const pos2Angle1Input = document.getElementById('pos2-angle1');
   const pos2Angle2Input = document.getElementById('pos2-angle2');
 
+  const seatPanImage = new Image();
+  seatPanImage.src = 'seatpan-image.png'; // Replace with your image path
+
+  const wheelBaseImage = new Image();
+  wheelBaseImage.src = 'wheelbase-image.png'; // Replace with your image path
+
+  const backRestImage = new Image();
+  backRestImage.src = 'backrest-image.png'; // Replace with your image path
+
   // Clear graph button
   const clearGraphBtn = document.getElementById('clear-graph-btn');
 
@@ -31,8 +40,8 @@
     seatPanLength: 160,
     hoverThreshold: 12,
     slider: {
-      x: 250,       // X position of the slider
-      y: 559,      // Y position of the slider (below the Z-frame)
+      x: 120,       // X position of the slider
+      y: 400,      // Y position of the slider (below the Z-frame)
       width: 100,  // Total width of the slider
       height: 8,   // Height of the slider bar
       handleRadius: 12, // Radius of the draggable handle
@@ -66,6 +75,11 @@
     draggingSlider: false, // Whether the slider is being dragged
     angleMultiplier : 0.80,
     seatPanTrails: config.seatPanPoints.map(() => []),
+  };
+
+  const layout = {
+    buttonSection: { x: 10, y: 10, width: 300 }, // Buttons on the left in rows
+    graphSection: { x: window.innerWidth - 320, y: 10, width: 300 }, // Graphs on the right
   };
 
   // Graph/oscilloscope data tracking
@@ -106,17 +120,26 @@
 
   // Canvas checkbox
   const canvasCheckbox = {
-    x: 230,
-    y: 475,
+    x: 250,
+    y: 350,
     size: 15,
     label: 'Allow Limited Movement',
     checked: true
   };
 
+    // Canvas checkbox
+  const imageCheckbox = {
+    x: 250,
+    y: 450,
+    size: 15,
+    label: 'Draw Chair',
+    checked: false
+  };
+
   // Joystick configuration
   const joystick = {
-    x: 300,
-    y: 400,
+    x: 172,
+    y: 510,
     radius: 40,
     knobRadius: 12,
     knobX: 0,
@@ -194,6 +217,87 @@
 
     }
   }
+
+  function drawSeatPanImage(){
+    const mid = middleEnd(); // Starting point of the seat pan (middle joint)
+    const seatEndPt = seatEnd(); // End point of the seat pan
+    const seatPanCenter = {
+      x: (mid.x + seatEndPt.x) / 2,
+      y: (mid.y + seatEndPt.y) / 2
+    }; // Center position of the seat pan
+
+    const direction = Math.atan2(seatEndPt.y - mid.y, seatEndPt.x - mid.x); // Rotation angle
+
+    const imageWidth = config.seatPanLength*2; // Stretch or fit the image to match seat pan length
+    const imageHeight = imageWidth * 1; // Adjust height proportionately
+
+    // Save the canvas state before applying transformations
+    ctx.save();
+
+    // Move canvas origin to the center of the seat pan
+    ctx.translate(seatPanCenter.x, seatPanCenter.y);
+    ctx.rotate(direction); // Rotate to match the seat pan's angle
+
+    // Draw the image (centered around the seat pan's center)
+    ctx.drawImage(seatPanImage, -imageWidth / 2, -imageHeight / 2, imageWidth, imageHeight);
+
+    // Restore the canvas state to avoid affecting other drawings
+    ctx.restore();
+  }
+
+  function drawBackRestImage(){
+    const mid = middleEnd(); // Starting point of the seat pan (middle joint)
+    const seatEndPt = seatEnd(); // End point of the seat pan
+    const seatPanCenter = {
+      x: (mid.x + seatEndPt.x) / 2,
+      y: (mid.y + seatEndPt.y) / 2
+    }; // Center position of the seat pan
+
+    const direction = Math.atan2(seatEndPt.y - mid.y, seatEndPt.x - mid.x); // Rotation angle
+
+    const imageWidth = config.seatPanLength*2; // Stretch or fit the image to match seat pan length
+    const imageHeight = imageWidth * 1; // Adjust height proportionately
+
+    // Save the canvas state before applying transformations
+    ctx.save();
+
+    // Move canvas origin to the center of the seat pan
+    ctx.translate(seatPanCenter.x, seatPanCenter.y);
+    ctx.rotate(direction); // Rotate to match the seat pan's angle
+
+    // Draw the image (centered around the seat pan's center)
+    ctx.drawImage(backRestImage, -imageWidth / 2, -imageHeight / 2, imageWidth, imageHeight);
+
+    // Restore the canvas state to avoid affecting other drawings
+    ctx.restore();
+  }
+
+  function drawWheelBaseImage(){
+    const mid = middleEnd(); // Starting point of the seat pan (middle joint)
+    const seatEndPt = seatEnd(); // End point of the seat pan
+    const seatPanCenter = {
+      x: config.basePivot.x - 90,
+      y: config.basePivot.y - 20
+    }; // Center position of the seat pan
+
+
+    const imageWidth = config.seatPanLength*2; // Stretch or fit the image to match seat pan length
+    const imageHeight = imageWidth * 1; // Adjust height proportionately
+
+    // Save the canvas state before applying transformations
+    ctx.save();
+
+    // Move canvas origin to the center of the seat pan
+    ctx.translate(seatPanCenter.x, seatPanCenter.y);
+    // ctx.rotate(direction); // Rotate to match the seat pan's angle
+
+    // Draw the image (centered around the seat pan's center)
+    ctx.drawImage(wheelBaseImage, -imageWidth / 2, -imageHeight / 2, imageWidth, imageHeight);
+
+    // Restore the canvas state to avoid affecting other drawings
+    ctx.restore();
+  }
+
 
   function drawSlider(){
     const slider = config.slider;
@@ -344,16 +448,19 @@
 
   // Canvas sizing
   function resizeCanvas(){
-    const width = Math.max(600, Math.min(window.innerWidth - 120, 1000));
-    const height = 580;
+    const width = window.innerWidth; // Full screen width
+    const height = Math.max(520, window.innerHeight * 0.8); // Responsive height
+
+    // Resize the canvas
     canvas.width = Math.floor(width * devicePixelRatio);
     canvas.height = Math.floor(height * devicePixelRatio);
     canvas.style.width = width + 'px';
     canvas.style.height = height + 'px';
-    ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
 
-    config.basePivot.x = Math.round(width * 0.44);
-    config.basePivot.y = Math.round(height * 0.55);
+    // Keep the Z-frame centered
+    config.basePivot.x = Math.round(width / 2); // Center horizontally
+    config.basePivot.y = Math.round(height / 2); // Center vertically
     draw();
   }
 
@@ -401,6 +508,7 @@ function draw(){
   ctx.fillRect(0,0,w,h);
 
   drawGrid();
+
 
   // base line
   ctx.strokeStyle = '#333';
@@ -555,14 +663,25 @@ function draw(){
     drawSeatPanTrails();
   });
 
+  drawButtons();
+
+  if (imageCheckbox.checked)
+  {
+    drawSeatPanImage(); // Draw the image following the seat pan
+    drawBackRestImage();
+    drawWheelBaseImage();
+  }
+
   // Draw canvas checkbox
   drawCanvasCheckbox();
+  drawImageCheckbox();
 
   // Draw joystick
   drawJoystick();
 
   // Draw oscilloscope graph
   drawOscilloscope();
+  drawAngleRelationshipGraph(); // Render the second graph
 
   // Draw angle1 vs angle2 plot
   drawAngle1Vs2();
@@ -598,6 +717,36 @@ function drawButton(btn, isPressed, bgColor = null){
   ctx.textAlign = 'left';
 }
 
+function drawButtons(){
+  const buttonXStart = layout.buttonSection.x + 100; // Start X position of the buttons section
+  const buttonYStart = 150; // Start Y position of the buttons section
+  const buttonSpacing = 65; // Horizontal spacing between buttons in a row
+  const rowSpacing = 30; // Vertical spacing between button rows
+  let x = buttonXStart;
+  let y = buttonYStart;
+  let buttonsInRow = 0; // Keep track of the number of buttons in the current row
+
+  Object.keys(buttons).forEach(key => {
+    const btn = buttons[key];
+    btn.x = x;
+    btn.y = y;
+
+    // Draw the button
+    drawButton(btn, state.buttonHeld === key);
+
+    // Move to the next position
+    buttonsInRow++;
+    if(buttonsInRow === 2){ // Move to the next row after two buttons
+      buttonsInRow = 0;
+      x = buttonXStart; // Reset X position
+      y += rowSpacing;  // Move to the next row
+    } else {
+      x += buttonSpacing; // Place the next button in the same row
+    }
+  });
+}
+
+
 function drawCanvasCheckbox(){
   const cb = canvasCheckbox;
 
@@ -627,6 +776,37 @@ function drawCanvasCheckbox(){
   ctx.textBaseline = 'middle';
   ctx.fillText(cb.label, cb.x + cb.size + 8, cb.y + cb.size / 2);
 }
+
+function drawImageCheckbox(){
+  const cb = imageCheckbox;
+
+  // Draw checkbox box
+  ctx.fillStyle = imageCheckbox.checked ? '#2b7cff' : '#fff';
+  ctx.fillRect(cb.x, cb.y, cb.size, cb.size);
+
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(cb.x, cb.y, cb.size, cb.size);
+
+  // Draw checkmark if checked
+  if(imageCheckbox.checked){
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cb.x + 3, cb.y + 8);
+    ctx.lineTo(cb.x + 6, cb.y + 11);
+    ctx.lineTo(cb.x + 12, cb.y + 3);
+    ctx.stroke();
+  }
+
+  // Draw label
+  ctx.fillStyle = '#333';
+  ctx.font = '11px system-ui,Segoe UI,Roboto,Arial';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(cb.label, cb.x + cb.size + 8, cb.y + cb.size / 2);
+};
+
 
 function drawJoystick(){
   const j = joystick;
@@ -689,14 +869,32 @@ function drawJoystick(){
   ctx.fillText('▶ Sum', j.x + j.radius + 30, j.y);
 }
 
-function drawOscilloscope(){
-  // Graph dimensions and position
-  const graphX = canvas.clientWidth - 320;
-  const graphY = 10;
-  const graphWidth = 300;
+function drawAngleRelationshipGraph(){
+  const graphX = layout.graphSection.x;
+  const graphWidth = layout.graphSection.width;
+  const graphY = 250; // Place below the first graph
   const graphHeight = 200;
 
-  // Draw background
+  // Draw graph background
+  ctx.fillStyle = '#f0f0f0';
+  ctx.fillRect(graphX, graphY, graphWidth, graphHeight);
+
+  // Draw border
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(graphX, graphY, graphWidth, graphHeight);
+
+  // Additional graph content as before...
+}
+
+function drawOscilloscope(){
+  // Graph dimensions and position
+  const graphX = layout.graphSection.x;
+  const graphWidth = layout.graphSection.width;
+  const graphY = 10; // Start drawing from top
+  const graphHeight = 200;
+
+  // Draw graph background
   ctx.fillStyle = '#f0f0f0';
   ctx.fillRect(graphX, graphY, graphWidth, graphHeight);
 
@@ -963,6 +1161,11 @@ function drawAngle1Vs2(){
     if(px >= canvasCheckbox.x && px <= canvasCheckbox.x + canvasCheckbox.size &&
        py >= canvasCheckbox.y && py <= canvasCheckbox.y + canvasCheckbox.size){
       return 'canvasCheckbox';
+    }
+
+    if(px >= imageCheckbox.x && px <= imageCheckbox.x + imageCheckbox.size &&
+       py >= imageCheckbox.y && py <= imageCheckbox.y + imageCheckbox.size){
+      return 'imageCheckbox';
     }
 
     // Check joystick
@@ -1505,10 +1708,13 @@ function drawAngle1Vs2(){
         draw();
         updateHeldButton();
         return; // Exit early since we don't need drag functionality
-      }
-      else if(buttonClicked === 'canvasCheckbox'){
+      } else if(buttonClicked === 'canvasCheckbox'){
         // Toggle checkbox
         canvasCheckbox.checked = !canvasCheckbox.checked;
+        draw();
+      } else if(buttonClicked === 'imageCheckbox'){
+        // Toggle checkbox
+        imageCheckbox.checked = !imageCheckbox.checked;
         draw();
       } else if(buttonClicked === 'joystick'){
         // Start joystick drag
@@ -1614,7 +1820,10 @@ function drawAngle1Vs2(){
     canvas.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointerup', onPointerUp);
 
-    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('resize', () => {
+      layout.graphSection.x = window.innerWidth - 320; // Dynamically adjust graph position
+      resizeCanvas(); // Resize the canvas and redraw everything
+    });
 
     // Position input listeners
     pos1Angle1Input.addEventListener('change', () => {
