@@ -282,8 +282,6 @@
   }
 
   function drawWheelBaseImage(){
-    const mid = middleEnd(); // Starting point of the seat pan (middle joint)
-    const seatEndPt = seatEnd(); // End point of the seat pan
     const seatPanCenter = {
       x: config.basePivot.x - 90,
       y: config.basePivot.y - 20
@@ -355,6 +353,14 @@
       ctx.arc(x, y, 4, 0, Math.PI * 2); // Smaller dot
       ctx.fill();
     });
+  }
+
+  function clearCanvas(){
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    ctx.clearRect(0,0,w,h);  
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0,0,w,h);
   }
 
   function drawGrid(){
@@ -504,68 +510,62 @@
     return Math.hypot(dx,dy);
   }
 
-  // Draw function
-  // Replace the existing draw() with this version (keeps original drawing + angle arcs/labels)
-function draw(){
-  const w = canvas.clientWidth;
-  const h = canvas.clientHeight;
-  ctx.clearRect(0,0,w,h);
+  function drawZBase(){
+    // base line
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 8;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(config.basePivot.x-160, config.basePivot.y);
+    ctx.lineTo(config.basePivot.x, config.basePivot.y);
+    ctx.stroke();
+  }
 
-  
+  function drawZMiddle(){
+    // middle member
+    const midStart = { ...config.basePivot };
+    const midEnd = middleEnd();
+    ctx.strokeStyle = state.hovering === 'angle1' || state.dragging === 'angle1' ? '#ff8a65' : '#2f2f2f';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(midStart.x, midStart.y);
+    ctx.lineTo(midEnd.x, midEnd.y);
+    ctx.stroke();
+  }
+  function drawZSeat(){
+    // seat pan
+    const seatStart = middleEnd();
+    const seatEndPt = seatEnd();
+    ctx.strokeStyle = state.hovering === 'angle2' || state.dragging === 'angle2' ? '#ff8a65' : '#666';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(seatStart.x, seatStart.y);
+    ctx.lineTo(seatEndPt.x, seatEndPt.y);
+    ctx.stroke();
+  }
 
-  // background
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0,0,w,h);
+  function drawZPivots(){
+    // pivots
+    const midEnd = middleEnd();
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.arc(config.basePivot.x, config.basePivot.y, 6, 0, Math.PI*2);
+    ctx.fill();
 
-  drawGrid();
+    ctx.beginPath();
+    ctx.arc(midEnd.x, midEnd.y, 6, 0, Math.PI*2);
+    ctx.fill();
+  }
 
-
-  // base line
-  ctx.strokeStyle = '#333';
-  ctx.lineWidth = 8;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(config.basePivot.x-160, config.basePivot.y);
-  ctx.lineTo(config.basePivot.x, config.basePivot.y);
-  ctx.stroke();
-
-  // middle member
-  const midStart = { ...config.basePivot };
-  const midEnd = middleEnd();
-  ctx.strokeStyle = state.hovering === 'angle1' || state.dragging === 'angle1' ? '#ff8a65' : '#2f2f2f';
-  ctx.lineWidth = 6;
-  ctx.beginPath();
-  ctx.moveTo(midStart.x, midStart.y);
-  ctx.lineTo(midEnd.x, midEnd.y);
-  ctx.stroke();
-
-  // seat pan
-  const seatStart = midEnd;
-  const seatEndPt = seatEnd();
-  ctx.strokeStyle = state.hovering === 'angle2' || state.dragging === 'angle2' ? '#ff8a65' : '#666';
-  ctx.lineWidth = 6;
-  ctx.beginPath();
-  ctx.moveTo(seatStart.x, seatStart.y);
-  ctx.lineTo(seatEndPt.x, seatEndPt.y);
-  ctx.stroke();
-
-  // pivots
-  ctx.fillStyle = '#111';
-  ctx.beginPath();
-  ctx.arc(config.basePivot.x, config.basePivot.y, 6, 0, Math.PI*2);
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.arc(midEnd.x, midEnd.y, 6, 0, Math.PI*2);
-  ctx.fill();
-
-  // Draw angle arcs and labels:
-  // angle1: between the base horizontal (0° to the right) and middle member (state.angle1)
-  // angle2: between the middle member direction (state.angle1) and the seat pan (state.angle2)
-  // Use distinct radii/colors so they don't overlap.
-  try {
+  function drawZAngleArc(){
+    // Draw angle arcs and labels:
+    // angle1: between the base horizontal (0° to the right) and middle member (state.angle1)
+    // angle2: between the middle member direction (state.angle1) and the seat pan (state.angle2)
+    // Use distinct radii/colors so they don't overlap.
     // Check if angles are at their limits
-    const { min: angle1Min, max: angle1Max } = getAngle1Limits();
+    const midEnd = middleEnd();
+
+    const { min: angle1Min, max: angle1Max } = getAngle1Limits();    
     const { min: angle2Min, max: angle2Max } = getAngle2Limits();
 
     const angle1AtLimit = Math.abs(state.angle1 - angle1Min) < 0.01 || Math.abs(state.angle1 - angle1Max) < 0.01;
@@ -584,11 +584,10 @@ function draw(){
       `angle1 ${angle1Deg.toFixed(1)}°`,
       angle1AtLimit
     );
-
+    
     // Angle2: measure between middle member direction and seat pan direction at middle pivot
     const angle2StartDeg = state.angle1; // direction of middle member
     const angle2EndDeg = state.angle1 - state.angle2;   // direction of seat pan (absolute)
-    const sweepDeg = (angle2EndDeg - angle2StartDeg + 360) % 360;
     const interiorAngle2Deg = state.angle2; // interior angle
     drawAngleArc(
       midEnd.x,
@@ -600,109 +599,56 @@ function draw(){
       `angle2 ${interiorAngle2Deg.toFixed(1)}°`,
       angle2AtLimit
     );
-  } catch (e) {
-    // if anything goes wrong with arc drawing, ignore to avoid blocking the rest of the UI
-    // console.warn('Angle label draw error', e);
   }
 
-  // angle text (left UI)
-  const { min: angle1Min, max: angle1Max } = getAngle1Limits();
-  const { min: angle2Min, max: angle2Max } = getAngle2Limits();
+  function drawZ(){
+    drawZBase();
+    drawZMiddle();
+    drawZSeat();
+    drawZPivots();
+    drawZAngleArc();
+    drawSeatPanTrails();
+  }
 
-  const angle1AtLimit = Math.abs(state.angle1 - angle1Min) < 0.01 || Math.abs(state.angle1 - angle1Max) < 0.01;
-  const angle2AtLimit = Math.abs(state.angle2 - angle2Min) < 0.01 || Math.abs(state.angle2 - angle2Max) < 0.01;
+  function drawText(){
+    const { min: angle1Min, max: angle1Max } = getAngle1Limits();
+    const seatPanAbsoluteAngle = (state.angle1 - state.angle2) % 360;
+    let minHeight = Math.sin(d2r(angle1Min));
+    let maxHeight = Math.sin(d2r(angle1Max));
+    let preHeight = Math.sin(d2r(state.angle1));  
 
-  // Draw angle1 text
-  if(angle1AtLimit){
-    ctx.fillStyle = '#ff4444';
-  } else {
     ctx.fillStyle = '#111';
-  }
-  ctx.font = '14px system-ui,Segoe UI,Roboto,Arial';
-  ctx.fillText(`Middle (angle1): ${state.angle1.toFixed(1)}°`, 90, 20);
-
-  // Draw angle2 text
-  if(angle2AtLimit){
-    ctx.fillStyle = '#ff4444';
-  } else {
-    ctx.fillStyle = '#111';
-  }
-  ctx.fillText(`Seat pan (angle2): ${state.angle2.toFixed(1)}°`, 90, 40);
-
-  ctx.fillStyle = '#111';
-  const seatPanAbsoluteAngle = (state.angle1 - state.angle2) % 360;
-  ctx.fillText(`Seat pan (absolute): ${seatPanAbsoluteAngle.toFixed(1)}°`, 90, 60);
-
-  let minHeight = Math.sin(d2r(angle1Min));
-  let maxHeight = Math.sin(d2r(angle1Max));
-  let preHeight = Math.sin(d2r(state.angle1));
-
-  ctx.fillText(`Height: ${(((preHeight-minHeight)/(maxHeight-minHeight))*100).toFixed(1)}%`, 90, 80);
-
-  // formula display
-  if(state.formulaExpr){
-    ctx.fillStyle = '#444';
-    ctx.fillText(`Formula: ${state.formulaExpr}`, 14, 80);
+    ctx.font = '14px system-ui,Segoe UI,Roboto,Arial';
+    ctx.fillText(`Middle (angle1): ${state.angle1.toFixed(1)}°`, 90, 20);
+    ctx.fillText(`Seat pan (angle2): ${state.angle2.toFixed(1)}°`, 90, 40);  
+    ctx.fillText(`Seat pan (absolute): ${seatPanAbsoluteAngle.toFixed(1)}°`, 90, 60);
+    ctx.fillText(`Height: ${(((preHeight-minHeight)/(maxHeight-minHeight))*100).toFixed(1)}%`, 90, 80);
   }
 
+  function drawPictureOfChair(){
+    if (imageCheckbox.checked)
+    {
+      drawSeatPanImage(); // Draw the image following the seat pan
+      drawBackRestImage();
+      drawWheelBaseImage();
+    }
+  }
 
-
-  // Draw actuator buttons with labels
-  const actuatorGroups = [
-    { label: 'Act-1', buttons: ['act1Down', 'act1Up'] },
-    { label: 'Act-2', buttons: ['act2Down', 'act2Up'] },
-    { label: 'Act-1-then-2', buttons: ['z1Down', 'z1Up'] },
-    { label: 'Act-2-then-1', buttons: ['z2Down', 'z2Up'] },
-    { label: 'Z-Diff-Const', buttons: ['zElevateDown', 'zElevateUp'] },
-    { label: 'Z-Sum-Const', buttons: ['zTiltDown', 'zTiltUp'] },
-    { label: 'Maintain Ratio', buttons: ['maintainRatioDown', 'maintainRatioUp'] },
-  ];
-
-  //just the labels
-  actuatorGroups.forEach(group => {
-    const btn = buttons[group.buttons[0]];
-    // Draw label to the left
-    ctx.fillStyle = '#333';
-    ctx.font = '11px system-ui,Segoe UI,Roboto,Arial';
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(group.label, btn.x - 8, btn.y + btn.height / 2);
-  });
-
-  drawSeatPanTrails();
-
+  // Draw function
+  // Replace the existing draw() with this version (keeps original drawing + angle arcs/labels)
+function draw(){
+  clearCanvas();
+  drawGrid();
+  drawZ();
+  drawText();
   drawButtons();
-
-  if (imageCheckbox.checked)
-  {
-    drawSeatPanImage(); // Draw the image following the seat pan
-    drawBackRestImage();
-    drawWheelBaseImage();
-  }
-
-  // Draw canvas checkbox
+  drawPictureOfChair();
   drawCanvasCheckbox();
   drawImageCheckbox();
-
-  // Draw joystick
   drawJoystick();
-
-  // Draw oscilloscope graph
   drawOscilloscope();
-  drawAngleRelationshipGraph(); // Render the second graph
-
-  // Draw angle1 vs angle2 plot
   drawPhaseChart();
-
-  // // Draw position buttons
-  // drawButton(buttons.pos1, false, '#00cc00');
-  // drawButton(buttons.pos2, false, '#ff8a65');
-
-  // drawButton(buttons.maintainRatioDown, state.buttonHeld === 'maintainRatioDown');
-  // drawButton(buttons.maintainRatioUp, state.buttonHeld === 'maintainRatioUp');
-
   drawSlider(); // Draw the slider
-  ctx.textAlign = 'left';
 }
 
 function LightenDarkenColor(hex, amount) {
@@ -762,6 +708,26 @@ function drawButtons(){
   let x = buttonXStart;
   let y = buttonYStart;
   let buttonsInRow = 0; // Keep track of the number of buttons in the current row
+
+  // Draw actuator buttons with labels
+  const actuatorGroups = [
+    { label: 'Act-1', buttons: ['act1Down', 'act1Up'] },
+    { label: 'Act-2', buttons: ['act2Down', 'act2Up'] },
+    { label: 'Act-1-then-2', buttons: ['z1Down', 'z1Up'] },
+    { label: 'Act-2-then-1', buttons: ['z2Down', 'z2Up'] },
+    { label: 'Z-Diff-Const', buttons: ['zElevateDown', 'zElevateUp'] },
+    { label: 'Z-Sum-Const', buttons: ['zTiltDown', 'zTiltUp'] },
+    { label: 'Maintain Ratio', buttons: ['maintainRatioDown', 'maintainRatioUp'] },
+  ];
+  actuatorGroups.forEach(group => {
+    const btn = buttons[group.buttons[0]];
+    // Draw label to the left
+    ctx.fillStyle = '#333';
+    ctx.font = '11px system-ui,Segoe UI,Roboto,Arial';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(group.label, btn.x - 8, btn.y + btn.height / 2);
+  });
 
   Object.keys(buttons).forEach(key => {
     const btn = buttons[key];
@@ -904,24 +870,6 @@ function drawJoystick(){
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
   ctx.fillText('▶ Sum', j.x + j.radius + 30, j.y);
-}
-
-function drawAngleRelationshipGraph(){
-  const graphX = layout.graphSection.x;
-  const graphWidth = layout.graphSection.width;
-  const graphY = 250; // Place below the first graph
-  const graphHeight = 200;
-
-  // Draw graph background
-  ctx.fillStyle = '#f0f0f0';
-  ctx.fillRect(graphX, graphY, graphWidth, graphHeight);
-
-  // Draw border
-  ctx.strokeStyle = '#333';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(graphX, graphY, graphWidth, graphHeight);
-
-  // Additional graph content as before...
 }
 
 function drawOscilloscope(){
