@@ -1,6 +1,7 @@
 // Z-frame Wheelchair Simulator (vanilla JS)
 // - angle1: middle member (rotates about base pivot)
 // - angle2: seat pan (rotates about middle end)
+// - angle3: backrest (rotates about seat pan end, measured clockwise)
 // Angles displayed and expected in degrees; internal math uses degrees when evaluating user formulas.
 
 (() => {
@@ -8,12 +9,15 @@
   const ctx = canvas.getContext('2d');
   const angle1Display = document.getElementById('angle1-val');
   const angle2Display = document.getElementById('angle2-val');
+  const angle3Display = document.getElementById('angle3-val');
 
   // Limit input elements
   const angle1MinInput = document.getElementById('angle1-min');
   const angle1MaxInput = document.getElementById('angle1-max');
   const angle2MinInput = document.getElementById('angle2-min');
   const angle2MaxInput = document.getElementById('angle2-max');
+  const angle3MinInput = document.getElementById('angle3-min');
+  const angle3MaxInput = document.getElementById('angle3-max');
 
   // Position input elements
   const pos1Angle1Input = document.getElementById('pos1-angle1');
@@ -35,9 +39,10 @@
 
   // Layout / geometry
   const config = {
-    basePivot: { x: 240, y: 360 }, // will be repositioned on resize
+    basePivot: { x: 240, y: 400 }, // will be repositioned on resize
     middleLength: 180,
     seatPanLength: 160,
+    backrestLength: 150,
     hoverThreshold: 12,
     slider: {
       x: 120,       // X position of the slider
@@ -56,7 +61,7 @@
   const state = {
     angle1: 30, // degrees (middle)
     angle2: 30, // degrees (seat pan)
-    angle3: 0,  // reserved (base)
+    angle3: 30, // degrees (backrest)
     dragging: null, // 'angle1' | 'angle2' | null
     hovering: null, // same
     buttonHeld: null, // 'increase' | 'decrease' | null (for hold-down behavior)
@@ -176,6 +181,12 @@
     return { min, max };
   }
 
+  function getAngle3Limits(){
+    const min = parseFloat(angle3MinInput.value) || 0;
+    const max = parseFloat(angle3MaxInput.value) || 360;
+    return { min, max };
+  }
+
   // Constrain angle within limits
   function constrainAngle1(angle){
     const { min, max } = getAngle1Limits();
@@ -184,6 +195,11 @@
 
   function constrainAngle2(angle){
     const { min, max } = getAngle2Limits();
+    return Math.max(min, Math.min(max, angle));
+  }
+
+  function constrainAngle3(angle){
+    const { min, max } = getAngle3Limits();
     return Math.max(min, Math.min(max, angle));
   }
 
@@ -258,14 +274,14 @@
   }
 
   function drawBackRestImage(){
-    const mid = middleEnd(); // Starting point of the seat pan (middle joint)
+    const backRestEnd = rightArmEnd(); // Starting point of the seat pan (middle joint)
     const seatEndPt = seatEnd(); // End point of the seat pan
     const seatPanCenter = {
-      x: (mid.x + seatEndPt.x) / 2,
-      y: (mid.y + seatEndPt.y) / 2
+      x: (backRestEnd.x + seatEndPt.x) / 2,
+      y: (backRestEnd.y + seatEndPt.y) / 2
     }; // Center position of the seat pan
 
-    const direction = Math.atan2(seatEndPt.y - mid.y, seatEndPt.x - mid.x); // Rotation angle
+    const direction = Math.atan2(seatEndPt.y - backRestEnd.y, seatEndPt.x - backRestEnd.x)+d2r(270); // Rotation angle
 
     let imageScaler = config.seatPanLength*2/backRestImage.width;
     const imageWidth = backRestImage.width*imageScaler; // Stretch or fit the image to match seat pan length
@@ -278,8 +294,13 @@
     ctx.translate(seatPanCenter.x, seatPanCenter.y);
     ctx.rotate(direction); // Rotate to match the seat pan's angle
 
+    const offset = {
+      x: -70,
+      y:80,
+    }
+
     // Draw the image (centered around the seat pan's center)
-    ctx.drawImage(backRestImage, -imageWidth / 2, -imageHeight / 2, imageWidth, imageHeight);
+    ctx.drawImage(backRestImage, (-imageWidth / 2) + offset.x, (-imageHeight / 2)+ offset.y, imageWidth, imageHeight);
 
     // Restore the canvas state to avoid affecting other drawings
     ctx.restore();
@@ -480,7 +501,7 @@
 
     // Keep the Z-frame centered
     config.basePivot.x = Math.round(width / 2); // Center horizontally
-    config.basePivot.y = Math.round(height / 2); // Center vertically
+    config.basePivot.y = 2*Math.round(height / 3); // Center vertically
     draw();
   }
 
@@ -499,6 +520,15 @@
     return {
       x: mid.x + config.seatPanLength * Math.cos(a),
       y: mid.y + config.seatPanLength * Math.sin(a)
+    };
+  }
+
+  function rightArmEnd() {
+    const seat = seatEnd();
+    const a = d2r(state.angle1-state.angle2-state.angle3);
+    return {
+      x: seat.x + config.backrestLength * Math.cos(a),
+      y: seat.y + config.backrestLength * Math.sin(a)
     };
   }
 
@@ -548,6 +578,18 @@
     ctx.stroke();
   }
 
+  function drawZBackrest(){
+    // backrest
+    const armStart = seatEnd();
+    const armEndPt = rightArmEnd();
+    ctx.strokeStyle = state.hovering === 'angle3' || state.dragging === 'angle3' ? '#ff8a65' : '#999';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(armStart.x, armStart.y);
+    ctx.lineTo(armEndPt.x, armEndPt.y);
+    ctx.stroke();
+  }
+
   function drawZPivots(){
     // pivots
     const midEnd = middleEnd();
@@ -565,15 +607,19 @@
     // Draw angle arcs and labels:
     // angle1: between the base horizontal (0° to the right) and middle member (state.angle1)
     // angle2: between the middle member direction (state.angle1) and the seat pan (state.angle2)
+    // angle3: between the seat pan and the backrest (measured clockwise)
     // Use distinct radii/colors so they don't overlap.
     // Check if angles are at their limits
     const midEnd = middleEnd();
+    const seatEndPt = seatEnd();
 
     const { min: angle1Min, max: angle1Max } = getAngle1Limits();
     const { min: angle2Min, max: angle2Max } = getAngle2Limits();
+    const { min: angle3Min, max: angle3Max } = getAngle3Limits();
 
     const angle1AtLimit = Math.abs(state.angle1 - angle1Min) < 0.01 || Math.abs(state.angle1 - angle1Max) < 0.01;
     const angle2AtLimit = Math.abs(state.angle2 - angle2Min) < 0.01 || Math.abs(state.angle2 - angle2Max) < 0.01;
+    const angle3AtLimit = Math.abs(state.angle3 - angle3Min) < 0.01 || Math.abs(state.angle3 - angle3Max) < 0.01;
 
     // Angle1: measure from horizontal (0°) to state.angle1 on the top side
     const baseReferenceDeg = 0; // baseline pointing right
@@ -603,12 +649,28 @@
       `angle2 ${interiorAngle2Deg.toFixed(1)}°`,
       angle2AtLimit
     );
+
+    // Angle3: measure between seat pan direction and backrest direction at seat pivot
+    const angle3StartDeg = state.angle1 - state.angle2; // direction of seat pan
+    const angle3EndDeg = state.angle1 - state.angle2 - state.angle3; // direction of backrest (clockwise)
+    const interiorAngle3Deg = state.angle3; // interior angle
+    drawAngleArc(
+      seatEndPt.x,
+      seatEndPt.y,
+      angle3EndDeg,
+      angle3StartDeg,
+      20,
+      '#66bb6a',
+      `backrest ${interiorAngle3Deg.toFixed(1)}°`,
+      angle3AtLimit
+    );
   }
 
   function drawZ(){
     drawZBase();
     drawZMiddle();
     drawZSeat();
+    drawZBackrest();
     drawZPivots();
     drawZAngleArc();
     drawSeatPanTrails();
@@ -630,7 +692,7 @@
   }
 
   function drawPictureOfChair(){
-    if (imageCheckbox.checked)
+    // if (imageCheckbox.checked)
     {
       drawSeatPanImage(); // Draw the image following the seat pan
       drawBackRestImage();
@@ -1559,11 +1621,14 @@ function drawPhaseChart(){
 
     const midEnd = middleEnd();
     const seatEndPt = seatEnd();
+    const rightArmEndPt = rightArmEnd();
     const dMid = pointToSegmentDistance(px,py, config.basePivot.x, config.basePivot.y, midEnd.x, midEnd.y);
     const dSeat = pointToSegmentDistance(px,py, midEnd.x, midEnd.y, seatEndPt.x, seatEndPt.y);
+    const dBackrest = pointToSegmentDistance(px,py, seatEndPt.x, seatEndPt.y, rightArmEndPt.x, rightArmEndPt.y);
 
     if(!state.dragging){
-      if(dSeat < config.hoverThreshold){ state.hovering = 'angle2'; canvas.style.cursor = 'grab'; }
+      if(dBackrest < config.hoverThreshold){ state.hovering = 'angle3'; canvas.style.cursor = 'grab'; }
+      else if(dSeat < config.hoverThreshold){ state.hovering = 'angle2'; canvas.style.cursor = 'grab'; }
       else if(dMid < config.hoverThreshold){ state.hovering = 'angle1'; canvas.style.cursor = 'grab'; }
       else { state.hovering = null; canvas.style.cursor = 'default'; }
     } else {
@@ -1604,6 +1669,19 @@ function drawPhaseChart(){
         // Only update if the value actually changed
         if(deg !== state.angle2){
           state.angle2 = deg;
+          changed = true;
+        }
+      } else if(state.dragging === 'angle3'){
+        const pivot = seatEnd();
+        const dx = px - pivot.x;
+        const dy = py - pivot.y;
+        let deg = r2d(Math.atan2(dy, dx));
+        deg = -roundHalfDegree(deg) + state.angle1 - state.angle2;
+        deg = constrainAngle3(deg);
+
+        // Only update if the value actually changed
+        if(deg !== state.angle3){
+          state.angle3 = deg;
           changed = true;
         }
       }
@@ -1771,6 +1849,7 @@ function drawPhaseChart(){
   function updateDisplays(){
     angle1Display.textContent = `${state.angle1.toFixed(1)}°`;
     angle2Display.textContent = `${state.angle2.toFixed(1)}°`;
+    angle3Display.textContent = `${state.angle3.toFixed(1)}°`;
   }
 
   // Update position input fields

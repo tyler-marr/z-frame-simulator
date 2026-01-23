@@ -12,7 +12,7 @@
       <h1>Z-frame Wheelchair Simulator</h1>
       <p>Drag the middle member (angle1) or the seat pan (angle2) to rotate about their pivots.</p>
     </header>
-    
+
     <section class="controls">
       <div class="angles">
         <div>
@@ -23,7 +23,12 @@
         <div>
           Seat pan (angle2): <span id="angle2-val">0.0°</span>
           <label>Min: <input id="angle2-min" type="number" value="5" style="width: 60px;" /></label>
-          <label>Max: <input id="angle2-max" type="number" value="40" style="width: 60px;" /></label>
+          <label>Max: <input id="angle2-max" type="number" value="90" style="width: 60px;" /></label>
+        </div>
+        <div>
+          Backrest (angle3): <span id="angle3-val">0.0°</span>
+          <label>Min: <input id="angle3-min" type="number" value="5" style="width: 60px;" /></label>
+          <label>Max: <input id="angle3-max" type="number" value="100" style="width: 60px;" /></label>
         </div>
         <strong>Position 1:</strong>
         <div class="angle-limits">
