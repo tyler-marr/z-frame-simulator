@@ -66,8 +66,12 @@
     positions:{
       position1: { angle1: 15, angle2: 25 }, // draggable point 1 on phase graph
       position2: { angle1: 35, angle2: 10 }, // draggable point 2 on phase graph
+      position3: { angle1: 10, angle2: 10 }, // draggable point 2 on phase graph
+      position4: { angle1: 15, angle2: 15 }, // draggable point 2 on phase graph
+      position5: { angle1: 20, angle2: 20 }, // draggable point 2 on phase graph
+      position6: { angle1: 25, angle2: 25 }, // draggable point 2 on phase graph
     },
-    
+
     draggingPosition: null, // 'position1' | 'position2' | null
     movingTowards: null, // 'position1' | 'position2' | null - animating towards saved position
     targetAngle1: null,
@@ -358,7 +362,7 @@
   function clearCanvas(){
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
-    ctx.clearRect(0,0,w,h);  
+    ctx.clearRect(0,0,w,h);
     ctx.fillStyle = '#fff';
     ctx.fillRect(0,0,w,h);
   }
@@ -565,7 +569,7 @@
     // Check if angles are at their limits
     const midEnd = middleEnd();
 
-    const { min: angle1Min, max: angle1Max } = getAngle1Limits();    
+    const { min: angle1Min, max: angle1Max } = getAngle1Limits();
     const { min: angle2Min, max: angle2Max } = getAngle2Limits();
 
     const angle1AtLimit = Math.abs(state.angle1 - angle1Min) < 0.01 || Math.abs(state.angle1 - angle1Max) < 0.01;
@@ -584,7 +588,7 @@
       `angle1 ${angle1Deg.toFixed(1)}°`,
       angle1AtLimit
     );
-    
+
     // Angle2: measure between middle member direction and seat pan direction at middle pivot
     const angle2StartDeg = state.angle1; // direction of middle member
     const angle2EndDeg = state.angle1 - state.angle2;   // direction of seat pan (absolute)
@@ -615,12 +619,12 @@
     const seatPanAbsoluteAngle = (state.angle1 - state.angle2) % 360;
     let minHeight = Math.sin(d2r(angle1Min));
     let maxHeight = Math.sin(d2r(angle1Max));
-    let preHeight = Math.sin(d2r(state.angle1));  
+    let preHeight = Math.sin(d2r(state.angle1));
 
     ctx.fillStyle = '#111';
     ctx.font = '14px system-ui,Segoe UI,Roboto,Arial';
     ctx.fillText(`Middle (angle1): ${state.angle1.toFixed(1)}°`, 90, 20);
-    ctx.fillText(`Seat pan (angle2): ${state.angle2.toFixed(1)}°`, 90, 40);  
+    ctx.fillText(`Seat pan (angle2): ${state.angle2.toFixed(1)}°`, 90, 40);
     ctx.fillText(`Seat pan (absolute): ${seatPanAbsoluteAngle.toFixed(1)}°`, 90, 60);
     ctx.fillText(`Height: ${(((preHeight-minHeight)/(maxHeight-minHeight))*100).toFixed(1)}%`, 90, 80);
   }
@@ -683,7 +687,7 @@ function LightenDarkenColor(hex, amount) {
 function drawButton(btn, isPressed, bgColor = null){
   const defaultBgColor = bgColor || '#2b7cff';
   const finalBgColor = isPressed ? LightenDarkenColor(defaultBgColor, -100) : defaultBgColor;
-  const textColor = isPressed ? '#e0e0e0' : '#fff';  
+  const textColor = isPressed ? '#e0e0e0' : '#fff';
 
   ctx.fillStyle = finalBgColor;
   ctx.fillRect(btn.x, btn.y, btn.width, btn.height);
@@ -1117,28 +1121,27 @@ function drawPhaseChart(){
     }
   }
 
-  // Draw position markers
-  const pos1Screen = dataToScreen(state.positions.position1.angle1, state.positions.position1.angle2);
-  if(pos1Screen.x >= plotX && pos1Screen.x <= plotX + plotWidth && pos1Screen.y >= plotY && pos1Screen.y <= plotY + plotHeight){
-    ctx.fillStyle = '#00cc00';
-    ctx.beginPath();
-    ctx.arc(pos1Screen.x, pos1Screen.y, 5, 0, Math.PI*2);
-    ctx.fill();
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+  function drawPositionMarker(position, colour)
+  {
+    // Draw position markers
+    const pos1Screen = dataToScreen(position.angle1, position.angle2);
+    if(pos1Screen.x >= plotX && pos1Screen.x <= plotX + plotWidth && pos1Screen.y >= plotY && pos1Screen.y <= plotY + plotHeight){
+      ctx.fillStyle = colour;
+      ctx.beginPath();
+      ctx.arc(pos1Screen.x, pos1Screen.y, 5, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
   }
 
-  const pos2Screen = dataToScreen(state.positions.position2.angle1, state.positions.position2.angle2);
-  if(pos2Screen.x >= plotX && pos2Screen.x <= plotX + plotWidth && pos2Screen.y >= plotY && pos2Screen.y <= plotY + plotHeight){
-    ctx.fillStyle = '#ff8a65';
-    ctx.beginPath();
-    ctx.arc(pos2Screen.x, pos2Screen.y, 5, 0, Math.PI*2);
-    ctx.fill();
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-  }
+  drawPositionMarker(state.positions.position1, buttons.pos1.colour);
+  drawPositionMarker(state.positions.position2, buttons.pos2.colour);
+  drawPositionMarker(state.positions.position3, buttons.pos3.colour);
+  drawPositionMarker(state.positions.position4, buttons.pos4.colour);
+  drawPositionMarker(state.positions.position5, buttons.pos5.colour);
+  drawPositionMarker(state.positions.position6, buttons.pos6.colour);
 }
   // Check if point is in button or checkbox
   function getButtonAtPoint(px, py){
@@ -1529,12 +1532,9 @@ function drawPhaseChart(){
       const newAngle1 = angle1MarginMin + (xRatio * angle1RangeWithMargin);
       const newAngle2 = angle2MarginMin + (yRatio * angle2RangeWithMargin);
 
-      if(state.draggingPosition === 'position1'){
-        state.positions.position1.angle1 = Math.max(angle1MarginMin, Math.min(angle1MarginMax, newAngle1));
-        state.positions.position1.angle2 = Math.max(angle2MarginMin, Math.min(angle2MarginMax, newAngle2));
-      } else if(state.draggingPosition === 'position2'){
-        state.positions.position2.angle1 = Math.max(angle1MarginMin, Math.min(angle1MarginMax, newAngle1));
-        state.positions.position2.angle2 = Math.max(angle2MarginMin, Math.min(angle2MarginMax, newAngle2));
+      if(state.draggingPosition && state.positions[state.draggingPosition]){
+        state.positions[state.draggingPosition].angle1 = Math.max(angle1MarginMin, Math.min(angle1MarginMax, newAngle1));
+        state.positions[state.draggingPosition].angle2 = Math.max(angle2MarginMin, Math.min(angle2MarginMax, newAngle2));
       }
       draw();
       return;
@@ -1655,24 +1655,16 @@ function drawPhaseChart(){
       return { x, y };
     }
 
-    // Check distance to position1
-    const pos1Screen = dataToScreen(state.positions.position1.angle1, state.positions.position1.angle2);
-    const dist1 = Math.hypot(px - pos1Screen.x, py - pos1Screen.y);
-    if(dist1 < 10 && px >= plotX && px <= plotX + plotWidth && py >= plotY && py <= plotY + plotHeight){
-      state.draggingPosition = 'position1';
-      canvas.setPointerCapture && canvas.setPointerCapture(evt.pointerId);
-      draw();
-      return;
-    }
-
-    // Check distance to position2
-    const pos2Screen = dataToScreen(state.positions.position2.angle1, state.positions.position2.angle2);
-    const dist2 = Math.hypot(px - pos2Screen.x, py - pos2Screen.y);
-    if(dist2 < 10 && px >= plotX && px <= plotX + plotWidth && py >= plotY && py <= plotY + plotHeight){
-      state.draggingPosition = 'position2';
-      canvas.setPointerCapture && canvas.setPointerCapture(evt.pointerId);
-      draw();
-      return;
+    // Check distance to all positions
+    for(const positionName in state.positions){
+      const posScreen = dataToScreen(state.positions[positionName].angle1, state.positions[positionName].angle2);
+      const dist = Math.hypot(px - posScreen.x, py - posScreen.y);
+      if(dist < 10 && px >= plotX && px <= plotX + plotWidth && py >= plotY && py <= plotY + plotHeight){
+        state.draggingPosition = positionName;
+        canvas.setPointerCapture && canvas.setPointerCapture(evt.pointerId);
+        draw();
+        return;
+      }
     }
 
     // Check if a button was clicked
@@ -1699,24 +1691,14 @@ function drawPhaseChart(){
         joystick.isDragging = true;
         canvas.setPointerCapture && canvas.setPointerCapture(evt.pointerId);
         updateJoystickKnob(px, py);
-      } else if(buttonClicked === 'pos1'){
-        // Start animating towards position1
-        state.movingTowards = 'position1';
-        state.targetAngle1 = constrainAngle1(state.positions.position1.angle1);
-        state.targetAngle2 = constrainAngle2(state.positions.position1.angle2);
+      } else if(buttonClicked.startsWith('pos') && state.positions[buttonClicked.replace('pos', 'position')]){
+        // Start animating towards the selected position
+        const positionName = buttonClicked.replace('pos', 'position');
+        state.movingTowards = positionName;
+        console.log(state.movingTowards);
+        state.targetAngle1 = constrainAngle1(state.positions[positionName].angle1);
+        state.targetAngle2 = constrainAngle2(state.positions[positionName].angle2);
         draw();
-      } else if(buttonClicked === 'pos2'){
-        // Start animating towards position2
-        state.movingTowards = 'position2';
-        state.targetAngle1 = constrainAngle1(state.positions.position2.angle1);
-        state.targetAngle2 = constrainAngle2(state.positions.position2.angle2);
-        draw();
-      // } else if(buttonClicked === 'pos3'){
-      //   // Start animating towards position3
-      //   state.movingTowards = 'position3';
-      //   state.targetAngle1 = constrainAngle1(state.position3.angle1);
-      //   state.targetAngle2 = constrainAngle2(state.position3.angle2);
-      //   draw();
       } else {
         state.buttonHeld = buttonClicked;
         draw();
@@ -1758,6 +1740,7 @@ function drawPhaseChart(){
     state.buttonHeld = null;
     state.buttonFrameCounter = 0;
 
+
     // Cancel movement towards position when user interacts elsewhere
     if(state.movingTowards && evt.target === canvas){
       // Only cancel if clicking on canvas (not on other elements)
@@ -1766,7 +1749,7 @@ function drawPhaseChart(){
       const py = evt.clientY - rect.top;
       const buttonClicked = getButtonAtPoint(px, py);
       // Only cancel if NOT clicking a position button
-      if(buttonClicked !== 'pos1' && buttonClicked !== 'pos2'){
+      if(!buttonClicked){
         state.movingTowards = null;
         state.targetAngle1 = null;
         state.targetAngle2 = null;
