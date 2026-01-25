@@ -69,24 +69,31 @@
     cursorX: 0,
     cursorY: 0,
     positions:{
-      position1: { angle1: 15, angle2: 25 }, // draggable point 1 on phase graph
-      position2: { angle1: 35, angle2: 10 }, // draggable point 2 on phase graph
-      position3: { angle1: 10, angle2: 10 }, // draggable point 2 on phase graph
-      position4: { angle1: 15, angle2: 15 }, // draggable point 2 on phase graph
-      position5: { angle1: 20, angle2: 20 }, // draggable point 2 on phase graph
-      position6: { angle1: 25, angle2: 25 }, // draggable point 2 on phase graph
+      position1: { angle1: 15, angle1Enabled: true, angle2: 25, angle2Enabled: true, angle3: 50, angle3Enabled: true }, // draggable point 1 on phase graph
+      position2: { angle1: 35, angle1Enabled: true, angle2: 10, angle2Enabled: true, angle3: 50, angle3Enabled: true }, // draggable point 2 on phase graph
+      position3: { angle1: 10, angle1Enabled: true, angle2: 10, angle2Enabled: true, angle3: 50, angle3Enabled: true }, // draggable point 3 on phase graph
+      position4: { angle1: 15, angle1Enabled: true, angle2: 15, angle2Enabled: true, angle3: 50, angle3Enabled: true }, // draggable point 4 on phase graph
+      position5: { angle1: 20, angle1Enabled: true, angle2: 20, angle2Enabled: true, angle3: 50, angle3Enabled: true }, // draggable point 5 on phase graph
+      position6: { angle1: 25, angle1Enabled: true, angle2: 25, angle2Enabled: true, angle3: 50, angle3Enabled: true }, // draggable point 6 on phase graph
     },
 
     draggingPosition: null, // 'position1' | 'position2' | null
     movingTowards: null, // 'position1' | 'position2' | null - animating towards saved position
     targetAngle1: null,
     targetAngle2: null,
+    targetAngle3: null,
     maintainRatioStartAngle1: null,
     maintainRatioStartAngle2: null,
     sliderValue: 80,  // Initial slider value (80%)
     draggingSlider: false, // Whether the slider is being dragged
     angleMultiplier : 0.80,
     seatPanTrails: config.seatPanPoints.map(() => []),
+    showGraph12: true,  // Show angle1 vs angle2 graph
+    showGraph13: true,  // Show angle1 vs angle3 graph
+    showGraph32: true,  // Show angle3 vs angle2 graph
+    drawChair: false,   // Draw chair images
+    showOscilloscope: true,  // Show oscilloscope graph
+    showSeatPanTrails: true,  // Show seat pan trails
   };
 
   const layout = {
@@ -218,6 +225,7 @@
         time: elapsed,
         angle1: state.angle1,
         angle2: state.angle2,
+        angle3: state.angle3,
         seatPanSum: seatPanAbsolute,
         buttonAction: state.buttonHeld || null
       });
@@ -593,6 +601,7 @@
   function drawZPivots(){
     // pivots
     const midEnd = middleEnd();
+    const seadtEnd = seatEnd();
     ctx.fillStyle = '#111';
     ctx.beginPath();
     ctx.arc(config.basePivot.x, config.basePivot.y, 6, 0, Math.PI*2);
@@ -600,6 +609,10 @@
 
     ctx.beginPath();
     ctx.arc(midEnd.x, midEnd.y, 6, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(seadtEnd.x, seadtEnd.y, 6, 0, Math.PI*2);
     ctx.fill();
   }
 
@@ -661,7 +674,7 @@
       angle3StartDeg,
       20,
       '#66bb6a',
-      `backrest ${interiorAngle3Deg.toFixed(1)}°`,
+      `angle3 ${interiorAngle3Deg.toFixed(1)}°`,
       angle3AtLimit
     );
   }
@@ -673,7 +686,7 @@
     drawZBackrest();
     drawZPivots();
     drawZAngleArc();
-    drawSeatPanTrails();
+    if(state.showSeatPanTrails) drawSeatPanTrails();
   }
 
   function drawText(){
@@ -688,11 +701,12 @@
     ctx.fillText(`Middle (angle1): ${state.angle1.toFixed(1)}°`, 90, 20);
     ctx.fillText(`Seat pan (angle2): ${state.angle2.toFixed(1)}°`, 90, 40);
     ctx.fillText(`Seat pan (absolute): ${seatPanAbsoluteAngle.toFixed(1)}°`, 90, 60);
-    ctx.fillText(`Height: ${(((preHeight-minHeight)/(maxHeight-minHeight))*100).toFixed(1)}%`, 90, 80);
+    ctx.fillText(`Recline (angle3): ${state.angle3.toFixed(1)}°`, 90, 80);
+    ctx.fillText(`Height: ${(((preHeight-minHeight)/(maxHeight-minHeight))*100).toFixed(1)}%`, 90, 100);
   }
 
   function drawPictureOfChair(){
-    // if (imageCheckbox.checked)
+    if (imageCheckbox.checked)
     {
       drawSeatPanImage(); // Draw the image following the seat pan
       drawBackRestImage();
@@ -710,9 +724,9 @@ function draw(){
   drawButtons();
   drawPictureOfChair();
   drawCanvasCheckbox();
-  drawImageCheckbox();
+  // drawImageCheckbox();
   drawJoystick();
-  drawOscilloscope();
+  if(state.showOscilloscope) drawOscilloscope();
   drawPhaseChart();
   drawSlider(); // Draw the slider
 }
@@ -1074,13 +1088,8 @@ function drawOscilloscope(){
   ctx.fillText('seat angle', graphX + 172, legendY);
 }
 
-function drawPhaseChart(){
-  // Plot dimensions and position (below oscilloscope)
-  const plotX = canvas.clientWidth - 320;
-  const plotY = 235;
-  const plotWidth = 300;
-  const plotHeight = 200;
-
+// Generic phase chart drawing function
+function drawPhaseGraphForAngles(plotX, plotY, plotWidth, plotHeight, angleXKey, angleYKey, title, getLimitsX, getLimitsY, dataExtractor) {
   // Draw background
   ctx.fillStyle = '#f0f0f0';
   ctx.fillRect(plotX, plotY, plotWidth, plotHeight);
@@ -1095,24 +1104,24 @@ function drawPhaseChart(){
   ctx.font = 'bold 12px system-ui,Segoe UI,Roboto,Arial';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  ctx.fillText('angle1 vs angle2', plotX + 5, plotY + 5);
+  ctx.fillText(title, plotX + 5, plotY + 5);
 
-  if(graphData.dataPoints.length < 1) return; // Need at least 1 point to draw
+  if(graphData.dataPoints.length < 1) return { trajectoryPoints: [], currentPoint: null };
 
   // Get angle limits
-  const { min: angle1Min, max: angle1Max } = getAngle1Limits();
-  const { min: angle2Min, max: angle2Max } = getAngle2Limits();
-  const angle1Range = angle1Max - angle1Min;
-  const angle2Range = angle2Max - angle2Min;
+  const { min: angleXMin, max: angleXMax } = getLimitsX();
+  const { min: angleYMin, max: angleYMax } = getLimitsY();
+  const angleXRange = angleXMax - angleXMin;
+  const angleYRange = angleYMax - angleYMin;
 
   // Add 5% margin to bounds
   const marginFactor = 0.05;
-  const angle1MarginMin = angle1Min - (angle1Range * marginFactor);
-  const angle1MarginMax = angle1Max + (angle1Range * marginFactor);
-  const angle2MarginMin = angle2Min - (angle2Range * marginFactor);
-  const angle2MarginMax = angle2Max + (angle2Range * marginFactor);
-  const angle1RangeWithMargin = angle1MarginMax - angle1MarginMin;
-  const angle2RangeWithMargin = angle2MarginMax - angle2MarginMin;
+  const angleXMarginMin = angleXMin - (angleXRange * marginFactor);
+  const angleXMarginMax = angleXMax + (angleXRange * marginFactor);
+  const angleYMarginMin = angleYMin - (angleYRange * marginFactor);
+  const angleYMarginMax = angleYMax + (angleYRange * marginFactor);
+  const angleXRangeWithMargin = angleXMarginMax - angleXMarginMin;
+  const angleYRangeWithMargin = angleYMarginMax - angleYMarginMin;
 
   // Draw grid lines
   ctx.strokeStyle = '#ddd';
@@ -1136,19 +1145,19 @@ function drawPhaseChart(){
   ctx.fillStyle = '#666';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  ctx.fillText(angle1MarginMin.toFixed(0), plotX, plotY + plotHeight + 2);
-  ctx.fillText(angle1MarginMax.toFixed(0), plotX + plotWidth, plotY + plotHeight + 2);
+  ctx.fillText(angleXMarginMin.toFixed(0), plotX, plotY + plotHeight + 2);
+  ctx.fillText(angleXMarginMax.toFixed(0), plotX + plotWidth, plotY + plotHeight + 2);
 
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
-  ctx.fillText(angle2MarginMax.toFixed(0), plotX - 3, plotY);
-  ctx.fillText(angle2MarginMin.toFixed(0), plotX - 3, plotY + plotHeight);
+  ctx.fillText(angleYMarginMax.toFixed(0), plotX - 3, plotY);
+  ctx.fillText(angleYMarginMin.toFixed(0), plotX - 3, plotY + plotHeight);
 
   // Helper to convert data to screen coordinates
-  function dataToScreen(angle1, angle2){
-    const xRatio = (angle1 - angle1MarginMin) / angle1RangeWithMargin;
+  function dataToScreen(angleX, angleY){
+    const xRatio = (angleX - angleXMarginMin) / angleXRangeWithMargin;
     const x = plotX + (xRatio * plotWidth);
-    const yRatio = (angle2 - angle2MarginMin) / angle2RangeWithMargin;
+    const yRatio = (angleY - angleYMarginMin) / angleYRangeWithMargin;
     const y = plotY + plotHeight - (yRatio * plotHeight);
     return { x, y };
   }
@@ -1158,8 +1167,12 @@ function drawPhaseChart(){
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   let firstPointDrawn = false;
+  const trajectoryPoints = [];
   for(let p of graphData.dataPoints){
-    const { x, y } = dataToScreen(p.angle1, p.angle2);
+    const angleX = dataExtractor(p).x;
+    const angleY = dataExtractor(p).y;
+    const { x, y } = dataToScreen(angleX, angleY);
+    trajectoryPoints.push({ x, y });
     if(x >= plotX && x <= plotX + plotWidth && y >= plotY && y <= plotY + plotHeight){
       if(!firstPointDrawn){
         ctx.moveTo(x, y);
@@ -1172,9 +1185,13 @@ function drawPhaseChart(){
   ctx.stroke();
 
   // Draw current point as a dot
+  let currentPoint = null;
   if(graphData.dataPoints.length > 0){
     const lastP = graphData.dataPoints[graphData.dataPoints.length - 1];
-    const { x, y } = dataToScreen(lastP.angle1, lastP.angle2);
+    const angleX = dataExtractor(lastP).x;
+    const angleY = dataExtractor(lastP).y;
+    const { x, y } = dataToScreen(angleX, angleY);
+    currentPoint = { x, y };
     if(x >= plotX && x <= plotX + plotWidth && y >= plotY && y <= plotY + plotHeight){
       ctx.fillStyle = '#ff6b6b';
       ctx.beginPath();
@@ -1183,27 +1200,242 @@ function drawPhaseChart(){
     }
   }
 
-  function drawPositionMarker(position, colour)
+  function drawPositionMarker(position, colour, posExtractor)
   {
-    // Draw position markers
-    const pos1Screen = dataToScreen(position.angle1, position.angle2);
-    if(pos1Screen.x >= plotX && pos1Screen.x <= plotX + plotWidth && pos1Screen.y >= plotY && pos1Screen.y <= plotY + plotHeight){
+    const posData = posExtractor(position);
+    const posScreen = dataToScreen(posData.x, posData.y);
+    if(posScreen.x >= plotX && posScreen.x <= plotX + plotWidth && posScreen.y >= plotY && posScreen.y <= plotY + plotHeight){
       ctx.fillStyle = colour;
       ctx.beginPath();
-      ctx.arc(pos1Screen.x, pos1Screen.y, 5, 0, Math.PI*2);
+      ctx.arc(posScreen.x, posScreen.y, 5, 0, Math.PI*2);
       ctx.fill();
       ctx.strokeStyle = '#000';
       ctx.lineWidth = 1.5;
       ctx.stroke();
     }
+    return posScreen;
   }
 
-  drawPositionMarker(state.positions.position1, buttons.pos1.colour);
-  drawPositionMarker(state.positions.position2, buttons.pos2.colour);
-  drawPositionMarker(state.positions.position3, buttons.pos3.colour);
-  drawPositionMarker(state.positions.position4, buttons.pos4.colour);
-  drawPositionMarker(state.positions.position5, buttons.pos5.colour);
-  drawPositionMarker(state.positions.position6, buttons.pos6.colour);
+  const positionMarkers = {};
+
+  // Draw position markers based on enabled angles
+  if(angleXKey === 'angle1' && angleYKey === 'angle2') {
+    if(state.positions.position1.angle1Enabled && state.positions.position1.angle2Enabled) {
+      positionMarkers.pos1 = { screen: drawPositionMarker(state.positions.position1, buttons.pos1.colour, p => ({x: p.angle1, y: p.angle2})), colour: buttons.pos1.colour };
+    }
+    if(state.positions.position2.angle1Enabled && state.positions.position2.angle2Enabled) {
+      positionMarkers.pos2 = { screen: drawPositionMarker(state.positions.position2, buttons.pos2.colour, p => ({x: p.angle1, y: p.angle2})), colour: buttons.pos2.colour };
+    }
+    if(state.positions.position3.angle1Enabled && state.positions.position3.angle2Enabled) {
+      positionMarkers.pos3 = { screen: drawPositionMarker(state.positions.position3, buttons.pos3.colour, p => ({x: p.angle1, y: p.angle2})), colour: buttons.pos3.colour };
+    }
+    if(state.positions.position4.angle1Enabled && state.positions.position4.angle2Enabled) {
+      positionMarkers.pos4 = { screen: drawPositionMarker(state.positions.position4, buttons.pos4.colour, p => ({x: p.angle1, y: p.angle2})), colour: buttons.pos4.colour };
+    }
+    if(state.positions.position5.angle1Enabled && state.positions.position5.angle2Enabled) {
+      positionMarkers.pos5 = { screen: drawPositionMarker(state.positions.position5, buttons.pos5.colour, p => ({x: p.angle1, y: p.angle2})), colour: buttons.pos5.colour };
+    }
+    if(state.positions.position6.angle1Enabled && state.positions.position6.angle2Enabled) {
+      positionMarkers.pos6 = { screen: drawPositionMarker(state.positions.position6, buttons.pos6.colour, p => ({x: p.angle1, y: p.angle2})), colour: buttons.pos6.colour };
+    }
+  } else if(angleXKey === 'angle1' && angleYKey === 'angle3') {
+    if(state.positions.position1.angle1Enabled && state.positions.position1.angle3Enabled) {
+      positionMarkers.pos1 = { screen: drawPositionMarker(state.positions.position1, buttons.pos1.colour, p => ({x: p.angle1, y: p.angle3})), colour: buttons.pos1.colour };
+    }
+    if(state.positions.position2.angle1Enabled && state.positions.position2.angle3Enabled) {
+      positionMarkers.pos2 = { screen: drawPositionMarker(state.positions.position2, buttons.pos2.colour, p => ({x: p.angle1, y: p.angle3})), colour: buttons.pos2.colour };
+    }
+    if(state.positions.position3.angle1Enabled && state.positions.position3.angle3Enabled) {
+      positionMarkers.pos3 = { screen: drawPositionMarker(state.positions.position3, buttons.pos3.colour, p => ({x: p.angle1, y: p.angle3})), colour: buttons.pos3.colour };
+    }
+    if(state.positions.position4.angle1Enabled && state.positions.position4.angle3Enabled) {
+      positionMarkers.pos4 = { screen: drawPositionMarker(state.positions.position4, buttons.pos4.colour, p => ({x: p.angle1, y: p.angle3})), colour: buttons.pos4.colour };
+    }
+    if(state.positions.position5.angle1Enabled && state.positions.position5.angle3Enabled) {
+      positionMarkers.pos5 = { screen: drawPositionMarker(state.positions.position5, buttons.pos5.colour, p => ({x: p.angle1, y: p.angle3})), colour: buttons.pos5.colour };
+    }
+    if(state.positions.position6.angle1Enabled && state.positions.position6.angle3Enabled) {
+      positionMarkers.pos6 = { screen: drawPositionMarker(state.positions.position6, buttons.pos6.colour, p => ({x: p.angle1, y: p.angle3})), colour: buttons.pos6.colour };
+    }
+  } else if(angleXKey === 'angle2' && angleYKey === 'angle3') {
+    if(state.positions.position1.angle2Enabled && state.positions.position1.angle3Enabled) {
+      positionMarkers.pos1 = { screen: drawPositionMarker(state.positions.position1, buttons.pos1.colour, p => ({x: p.angle2, y: p.angle3})), colour: buttons.pos1.colour };
+    }
+    if(state.positions.position2.angle2Enabled && state.positions.position2.angle3Enabled) {
+      positionMarkers.pos2 = { screen: drawPositionMarker(state.positions.position2, buttons.pos2.colour, p => ({x: p.angle2, y: p.angle3})), colour: buttons.pos2.colour };
+    }
+    if(state.positions.position3.angle2Enabled && state.positions.position3.angle3Enabled) {
+      positionMarkers.pos3 = { screen: drawPositionMarker(state.positions.position3, buttons.pos3.colour, p => ({x: p.angle2, y: p.angle3})), colour: buttons.pos3.colour };
+    }
+    if(state.positions.position4.angle2Enabled && state.positions.position4.angle3Enabled) {
+      positionMarkers.pos4 = { screen: drawPositionMarker(state.positions.position4, buttons.pos4.colour, p => ({x: p.angle2, y: p.angle3})), colour: buttons.pos4.colour };
+    }
+    if(state.positions.position5.angle2Enabled && state.positions.position5.angle3Enabled) {
+      positionMarkers.pos5 = { screen: drawPositionMarker(state.positions.position5, buttons.pos5.colour, p => ({x: p.angle2, y: p.angle3})), colour: buttons.pos5.colour };
+    }
+    if(state.positions.position6.angle2Enabled && state.positions.position6.angle3Enabled) {
+      positionMarkers.pos6 = { screen: drawPositionMarker(state.positions.position6, buttons.pos6.colour, p => ({x: p.angle2, y: p.angle3})), colour: buttons.pos6.colour };
+    }
+  } else if(angleXKey === 'angle3' && angleYKey === 'angle2') {
+    if(state.positions.position1.angle3Enabled && state.positions.position1.angle2Enabled) {
+      positionMarkers.pos1 = { screen: drawPositionMarker(state.positions.position1, buttons.pos1.colour, p => ({x: p.angle3, y: p.angle2})), colour: buttons.pos1.colour };
+    }
+    if(state.positions.position2.angle3Enabled && state.positions.position2.angle2Enabled) {
+      positionMarkers.pos2 = { screen: drawPositionMarker(state.positions.position2, buttons.pos2.colour, p => ({x: p.angle3, y: p.angle2})), colour: buttons.pos2.colour };
+    }
+    if(state.positions.position3.angle3Enabled && state.positions.position3.angle2Enabled) {
+      positionMarkers.pos3 = { screen: drawPositionMarker(state.positions.position3, buttons.pos3.colour, p => ({x: p.angle3, y: p.angle2})), colour: buttons.pos3.colour };
+    }
+    if(state.positions.position4.angle3Enabled && state.positions.position4.angle2Enabled) {
+      positionMarkers.pos4 = { screen: drawPositionMarker(state.positions.position4, buttons.pos4.colour, p => ({x: p.angle3, y: p.angle2})), colour: buttons.pos4.colour };
+    }
+    if(state.positions.position5.angle3Enabled && state.positions.position5.angle2Enabled) {
+      positionMarkers.pos5 = { screen: drawPositionMarker(state.positions.position5, buttons.pos5.colour, p => ({x: p.angle3, y: p.angle2})), colour: buttons.pos5.colour };
+    }
+    if(state.positions.position6.angle3Enabled && state.positions.position6.angle2Enabled) {
+      positionMarkers.pos6 = { screen: drawPositionMarker(state.positions.position6, buttons.pos6.colour, p => ({x: p.angle3, y: p.angle2})), colour: buttons.pos6.colour };
+    }
+  }
+
+  return { trajectoryPoints, currentPoint, positionMarkers };
+}
+
+function drawPhaseChart(){
+  // Layout for orthographic 3D view
+  const plotX1 = canvas.clientWidth - 650; // Left column
+  const plotX2 = plotX1 + 310; // Right column (gap between graphs)
+  const plotY1 = 235; // Top row
+  const plotY2 = plotY1 + 180 + 5; // Bottom row
+  const plotWidth = 300;
+  const plotHeight = 180;
+
+  // Draw Angle1 vs Angle2 graph (top-left)
+  let result12 = null;
+  if(state.showGraph12) {
+    result12 = drawPhaseGraphForAngles(
+      plotX1, plotY1, plotWidth, plotHeight,
+      'angle1', 'angle2',
+      'angle1 vs angle2',
+      getAngle1Limits,
+      getAngle2Limits,
+      (p) => ({x: p.angle1, y: p.angle2})
+    );
+  }
+
+  // Draw Angle1 vs Angle3 graph (bottom-left)
+  let result13 = null;
+  if(state.showGraph13) {
+    result13 = drawPhaseGraphForAngles(
+      plotX1, plotY2, plotWidth, plotHeight,
+      'angle1', 'angle3',
+      'angle1 vs angle3',
+      getAngle1Limits,
+      getAngle3Limits,
+      (p) => ({x: p.angle1, y: p.angle3})
+    );
+  }
+
+  // Draw Angle3 vs Angle2 graph (top-right)
+  let result32 = null;
+  if(state.showGraph32) {
+    result32 = drawPhaseGraphForAngles(
+      plotX2, plotY1, plotWidth, plotHeight,
+      'angle3', 'angle2',
+      'angle3 vs angle2',
+      getAngle3Limits,
+      getAngle2Limits,
+      (p) => ({x: p.angle3, y: p.angle2})
+    );
+  }
+
+// Helper to draw orthographic folding connecting lines (pure horizontal/vertical within graphs)
+  function drawOrthographicLine(fromX, fromY, toX, toY, colour, lineWidth, fromGraph, toGraph) {
+    ctx.strokeStyle = colour;
+    ctx.lineWidth = lineWidth;
+    ctx.beginPath();
+    ctx.moveTo(fromX, fromY);
+
+    if(fromGraph === '12' && toGraph === '13') {
+      // 1v2 to 1v3: straight vertical (they share angle1 x-axis)
+      ctx.lineTo(toX, toY);
+    } else if((fromGraph === '12' && toGraph === '32') || (fromGraph === '13' && toGraph === '32')) {
+      // Going to 3v2 graph: find the intersection point in empty space
+      // For 1v2→3v2: angle2 is shared (Y axis in 1v2, Y axis in 3v2)
+      // For 1v3→3v2: angle3 is shared (Y axis in 1v3, X axis in 3v2)
+
+      if(fromGraph === '12') {
+        // From 1v2 (angle1 x, angle2 y) to 3v2 (angle3 x, angle2 y): angle2 shared on Y
+        // Go horizontally to the right edge, then vertically to destination
+        const bendX = plotX1 + plotWidth;  // Right edge of left graphs
+        ctx.lineTo(bendX, fromY);          // Horizontal, preserving angle2 Y
+        ctx.lineTo(toX, toY);               // Vertical to destination
+      } else {
+        // From 1v3 (angle1 x, angle3 y) to 3v2 (angle3 x, angle2 y): angle3 shared
+        // Horizontal line from 1v3 point will have Y = fromY (angle3)
+        // Vertical line to 3v2 point will have X = toX (angle3)
+        // They intersect at (toX, fromY)
+        const bendX = toX;      // angle3 X position in 3v2 graph
+        const bendY = fromY;    // angle3 Y position in 1v3 graph
+        ctx.lineTo(bendX, bendY);  // Horizontal to intersection
+        ctx.lineTo(toX, toY);       // Vertical to destination
+      }
+    }
+    ctx.stroke();
+  }
+
+  // Draw connecting line between current points (12 to 13 vertical, sharing angle1 x-axis)
+  if(result12 && result13 && result12.currentPoint && result13.currentPoint){
+    drawOrthographicLine(result12.currentPoint.x, result12.currentPoint.y, result13.currentPoint.x, result13.currentPoint.y, 'rgba(255, 107, 107, 0.3)', 2, '12', '13');
+  }
+
+  // Draw connecting line between current points (12 to 32 with fold, sharing angle2 y-axis)
+  if(result12 && result32 && result12.currentPoint && result32.currentPoint){
+    drawOrthographicLine(result12.currentPoint.x, result12.currentPoint.y, result32.currentPoint.x, result32.currentPoint.y, 'rgba(255, 107, 107, 0.3)', 2, '12', '32');
+  }
+
+  // Draw connecting line between current points (13 to 32 with fold, sharing angle3)
+  if(result13 && result32 && result13.currentPoint && result32.currentPoint){
+    drawOrthographicLine(result13.currentPoint.x, result13.currentPoint.y, result32.currentPoint.x, result32.currentPoint.y, 'rgba(255, 107, 107, 0.3)', 2, '13', '32');
+  }
+
+  // Draw connecting lines between position markers (12 to 13 vertical, sharing angle1)
+  if(result12 && result13 && result12.positionMarkers && result13.positionMarkers){
+    for(const posKey in result12.positionMarkers){
+      const pos12 = result12.positionMarkers[posKey];
+      const pos13 = result13.positionMarkers[posKey];
+      if(pos12 && pos13){
+        const colour = pos12.colour;
+        ctx.strokeStyle = `rgba(${colour.substring(1, 3)}, ${colour.substring(3, 5)}, ${colour.substring(5, 7)}, 0.25)`;
+        drawOrthographicLine(pos12.screen.x, pos12.screen.y, pos13.screen.x, pos13.screen.y, ctx.strokeStyle, 1.5, '12', '13');
+      }
+    }
+  }
+
+  // Draw connecting lines between position markers (12 to 32 with fold, sharing angle2)
+  if(result12 && result32 && result12.positionMarkers && result32.positionMarkers){
+    for(const posKey in result12.positionMarkers){
+      const pos12 = result12.positionMarkers[posKey];
+      const pos32 = result32.positionMarkers[posKey];
+      if(pos12 && pos32){
+        const colour = pos12.colour;
+        ctx.strokeStyle = `rgba(${colour.substring(1, 3)}, ${colour.substring(3, 5)}, ${colour.substring(5, 7)}, 0.25)`;
+        drawOrthographicLine(pos12.screen.x, pos12.screen.y, pos32.screen.x, pos32.screen.y, ctx.strokeStyle, 1.5, '12', '32');
+      }
+    }
+  }
+
+  // Draw connecting lines between position markers (13 to 32 with fold, sharing angle3)
+  if(result13 && result32 && result13.positionMarkers && result32.positionMarkers){
+    for(const posKey in result13.positionMarkers){
+      const pos13 = result13.positionMarkers[posKey];
+      const pos32 = result32.positionMarkers[posKey];
+      if(pos13 && pos32){
+        const colour = pos13.colour;
+        ctx.strokeStyle = `rgba(${colour.substring(1, 3)}, ${colour.substring(3, 5)}, ${colour.substring(5, 7)}, 0.25)`;
+        drawOrthographicLine(pos13.screen.x, pos13.screen.y, pos32.screen.x, pos32.screen.y, ctx.strokeStyle, 1.5, '13', '32');
+      }
+    }
+  }
 }
   // Check if point is in button or checkbox
   function getButtonAtPoint(px, py){
@@ -1330,28 +1562,51 @@ function drawPhaseChart(){
     }
 
     // Apply smooth movement towards saved position
-    if(state.movingTowards && state.targetAngle1 !== null && state.targetAngle2 !== null){
+    if(state.movingTowards && (state.targetAngle1 !== null || state.targetAngle2 !== null || state.targetAngle3 !== null)){
       const speed = 0.08; // degrees per frame (slower animation)
-      const angle1Diff = state.targetAngle1 - state.angle1;
-      const angle2Diff = state.targetAngle2 - state.angle2;
-      const distance = Math.hypot(angle1Diff, angle2Diff);
+      let angle1Diff = state.targetAngle1 !== null ? state.targetAngle1 - state.angle1 : 0;
+      let angle2Diff = state.targetAngle2 !== null ? state.targetAngle2 - state.angle2 : 0;
+      let angle3Diff = state.targetAngle3 !== null ? state.targetAngle3 - state.angle3 : 0;
+      const distance = Math.hypot(angle1Diff, angle2Diff, angle3Diff);
 
       if(distance < 0.1){
         // Reached target
-        state.angle1 = state.targetAngle1;
-        state.angle2 = state.targetAngle2;
+        if(state.targetAngle1 !== null) state.angle1 = state.targetAngle1;
+        if(state.targetAngle2 !== null) state.angle2 = state.targetAngle2;
+        if(state.targetAngle3 !== null) state.angle3 = state.targetAngle3;
         state.movingTowards = null;
         state.targetAngle1 = null;
         state.targetAngle2 = null;
+        state.targetAngle3 = null;
         updateDisplays();
       } else {
         // Move towards target
         const stepDistance = Math.min(speed, distance);
-        const angle1Step = (angle1Diff / distance) * stepDistance;
-        const angle2Step = (angle2Diff / distance) * stepDistance;
+        let angle1Step = 0;
+        let angle2Step = 0;
+        let angle3Step = 0;
 
-        state.angle1 = constrainAngle1(state.angle1 + angle1Step);
-        state.angle2 = constrainAngle2(state.angle2 + angle2Step);
+        if(distance > 0){
+          if(state.targetAngle1 !== null){
+            angle1Step = (angle1Diff / distance) * stepDistance;
+          }
+          if(state.targetAngle2 !== null){
+            angle2Step = (angle2Diff / distance) * stepDistance;
+          }
+          if(state.targetAngle3 !== null){
+            angle3Step = (angle3Diff / distance) * stepDistance;
+          }
+        }
+
+        if(state.targetAngle1 !== null){
+          state.angle1 = constrainAngle1(state.angle1 + angle1Step);
+        }
+        if(state.targetAngle2 !== null){
+          state.angle2 = constrainAngle2(state.angle2 + angle2Step);
+        }
+        if(state.targetAngle3 !== null){
+          state.angle3 = constrainAngle3(state.angle3 + angle3Step);
+        }
         updateDisplays();
       }
     }
@@ -1569,35 +1824,130 @@ function drawPhaseChart(){
     state.cursorX = px;
     state.cursorY = py;
 
-    // Handle position marker dragging on phase graph
+    // Handle position marker dragging on phase graphs
     if(state.draggingPosition){
       const { min: angle1Min, max: angle1Max } = getAngle1Limits();
       const { min: angle2Min, max: angle2Max } = getAngle2Limits();
+      const { min: angle3Min, max: angle3Max } = getAngle3Limits();
       const angle1Range = angle1Max - angle1Min;
       const angle2Range = angle2Max - angle2Min;
+      const angle3Range = angle3Max - angle3Min;
       const marginFactor = 0.05;
       const angle1MarginMin = angle1Min - (angle1Range * marginFactor);
       const angle1MarginMax = angle1Max + (angle1Range * marginFactor);
       const angle2MarginMin = angle2Min - (angle2Range * marginFactor);
       const angle2MarginMax = angle2Max + (angle2Range * marginFactor);
+      const angle3MarginMin = angle3Min - (angle3Range * marginFactor);
+      const angle3MarginMax = angle3Max + (angle3Range * marginFactor);
       const angle1RangeWithMargin = angle1MarginMax - angle1MarginMin;
       const angle2RangeWithMargin = angle2MarginMax - angle2MarginMin;
+      const angle3RangeWithMargin = angle3MarginMax - angle3MarginMin;
 
-      const plotX = canvas.clientWidth - 320;
-      const plotY = 235;
+      const plotX = canvas.clientWidth - 650;
+      const plotX2 = plotX + 310;
+      const plotY1 = 235;
+      const plotY2 = plotY1 + 180 + 5;
       const plotWidth = 300;
-      const plotHeight = 200;
+      const plotHeight = 180;
 
-      // Convert screen coords back to angle coords
-      const xRatio = (px - plotX) / plotWidth;
-      const yRatio = (plotY + plotHeight - py) / plotHeight;
-      const newAngle1 = angle1MarginMin + (xRatio * angle1RangeWithMargin);
-      const newAngle2 = angle2MarginMin + (yRatio * angle2RangeWithMargin);
+      // Determine which graph is being dragged
+      const whichGraph = state.draggingGraph || '12'; // Default to angle1-angle2 for backwards compatibility
 
-      if(state.draggingPosition && state.positions[state.draggingPosition]){
-        state.positions[state.draggingPosition].angle1 = Math.max(angle1MarginMin, Math.min(angle1MarginMax, newAngle1));
-        state.positions[state.draggingPosition].angle2 = Math.max(angle2MarginMin, Math.min(angle2MarginMax, newAngle2));
+      if(whichGraph === '12'){
+        // Dragging on angle1-angle2 graph
+        const xRatio = (px - plotX) / plotWidth;
+        const yRatio = (plotY1 + plotHeight - py) / plotHeight;
+        const newAngle1 = angle1MarginMin + (xRatio * angle1RangeWithMargin);
+        const newAngle2 = angle2MarginMin + (yRatio * angle2RangeWithMargin);
+
+        if(state.draggingPosition && state.positions[state.draggingPosition]){
+          const pos = state.positions[state.draggingPosition];
+          pos.angle1 = Math.max(angle1Min, Math.min(angle1Max, newAngle1));
+          pos.angle2 = Math.max(angle2Min, Math.min(angle2Max, newAngle2));
+
+          // Update hidden input elements to match
+          if(state.draggingPosition === 'position1'){
+            pos1Angle1Input.value = state.positions.position1.angle1.toFixed(1);
+            pos1Angle2Input.value = state.positions.position1.angle2.toFixed(1);
+          } else if(state.draggingPosition === 'position2'){
+            pos2Angle1Input.value = state.positions.position2.angle1.toFixed(1);
+            pos2Angle2Input.value = state.positions.position2.angle2.toFixed(1);
+          } else {
+            const idx = state.draggingPosition.replace('position', '');
+            document.getElementById(`pos${idx}-angle1`).value = state.positions[state.draggingPosition].angle1.toFixed(1);
+            document.getElementById(`pos${idx}-angle2`).value = state.positions[state.draggingPosition].angle2.toFixed(1);
+          }
+
+          // Also update modal inputs if modal is visible
+          syncSettingsModal();
+
+          // Save to localStorage
+          saveSettings();
+        }
+      } else if(whichGraph === '13'){
+        // Dragging on angle1-angle3 graph
+        const xRatio = (px - plotX) / plotWidth;
+        const yRatio = (plotY2 + plotHeight - py) / plotHeight;
+        const newAngle1 = angle1MarginMin + (xRatio * angle1RangeWithMargin);
+        const newAngle3 = angle3MarginMin + (yRatio * angle3RangeWithMargin);
+
+        if(state.draggingPosition && state.positions[state.draggingPosition]){
+          const pos = state.positions[state.draggingPosition];
+          pos.angle1 = Math.max(angle1Min, Math.min(angle1Max, newAngle1));
+          pos.angle3 = Math.max(angle3Min, Math.min(angle3Max, newAngle3));
+
+          // Update hidden input elements to match
+          if(state.draggingPosition === 'position1'){
+            pos1Angle1Input.value = state.positions.position1.angle1.toFixed(1);
+            document.getElementById('pos1-angle3').value = state.positions.position1.angle3.toFixed(1);
+          } else if(state.draggingPosition === 'position2'){
+            pos2Angle1Input.value = state.positions.position2.angle1.toFixed(1);
+            document.getElementById('pos2-angle3').value = state.positions.position2.angle3.toFixed(1);
+          } else {
+            const idx = state.draggingPosition.replace('position', '');
+            document.getElementById(`pos${idx}-angle1`).value = state.positions[state.draggingPosition].angle1.toFixed(1);
+            document.getElementById(`pos${idx}-angle3`).value = state.positions[state.draggingPosition].angle3.toFixed(1);
+          }
+
+          // Also update modal inputs if modal is visible
+          syncSettingsModal();
+
+          // Save to localStorage
+          saveSettings();
+        }
+      } else if(whichGraph === '32'){
+        // Dragging on angle3-angle2 graph
+        const xRatio = (px - plotX2) / plotWidth;
+        const yRatio = (plotY1 + plotHeight - py) / plotHeight;
+        const newAngle3 = angle3MarginMin + (xRatio * angle3RangeWithMargin);
+        const newAngle2 = angle2MarginMin + (yRatio * angle2RangeWithMargin);
+
+        if(state.draggingPosition && state.positions[state.draggingPosition]){
+          const pos = state.positions[state.draggingPosition];
+          pos.angle2 = Math.max(angle2Min, Math.min(angle2Max, newAngle2));
+          pos.angle3 = Math.max(angle3Min, Math.min(angle3Max, newAngle3));
+
+          // Update hidden input elements to match
+          if(state.draggingPosition === 'position1'){
+            pos1Angle2Input.value = state.positions.position1.angle2.toFixed(1);
+            document.getElementById('pos1-angle3').value = state.positions.position1.angle3.toFixed(1);
+          } else if(state.draggingPosition === 'position2'){
+            pos2Angle2Input.value = state.positions.position2.angle2.toFixed(1);
+            document.getElementById('pos2-angle3').value = state.positions.position2.angle3.toFixed(1);
+          } else {
+            const idx = state.draggingPosition.replace('position', '');
+            document.getElementById(`pos${idx}-angle2`).value = state.positions[state.draggingPosition].angle2.toFixed(1);
+            document.getElementById(`pos${idx}-angle3`).value = state.positions[state.draggingPosition].angle3.toFixed(1);
+          }
+
+          // Also update modal inputs if modal is visible
+          syncSettingsModal();
+
+          // Save to localStorage
+          saveSettings();
+        }
       }
+
       draw();
       return;
     }
@@ -1698,47 +2048,115 @@ function drawPhaseChart(){
     const px = evt.clientX - rect.left;
     const py = evt.clientY - rect.top;
 
-    // Check if clicking on position markers in phase graph
+    // Check if clicking on position markers in phase graphs
     const { min: angle1Min, max: angle1Max } = getAngle1Limits();
     const { min: angle2Min, max: angle2Max } = getAngle2Limits();
+    const { min: angle3Min, max: angle3Max } = getAngle3Limits();
     const angle1Range = angle1Max - angle1Min;
     const angle2Range = angle2Max - angle2Min;
+    const angle3Range = angle3Max - angle3Min;
     const marginFactor = 0.05;
     const angle1MarginMin = angle1Min - (angle1Range * marginFactor);
     const angle1MarginMax = angle1Max + (angle1Range * marginFactor);
     const angle2MarginMin = angle2Min - (angle2Range * marginFactor);
     const angle2MarginMax = angle2Max + (angle2Range * marginFactor);
+    const angle3MarginMin = angle3Min - (angle3Range * marginFactor);
+    const angle3MarginMax = angle3Max + (angle3Range * marginFactor);
     const angle1RangeWithMargin = angle1MarginMax - angle1MarginMin;
     const angle2RangeWithMargin = angle2MarginMax - angle2MarginMin;
+    const angle3RangeWithMargin = angle3MarginMax - angle3MarginMin;
 
-    const plotX = canvas.clientWidth - 320;
-    const plotY = 235;
+    const plotX = canvas.clientWidth - 650;
+    const plotX2 = plotX + 310;
+    const plotY1 = 235;
+    const plotY2 = plotY1 + 180 + 5; // Same height as graph + 5px gap
     const plotWidth = 300;
-    const plotHeight = 200;
+    const plotHeight = 180;
 
-    function screenToData(sx, sy){
+    function screenToData12(sx, sy){
       const xRatio = (sx - plotX) / plotWidth;
-      const yRatio = (plotY + plotHeight - sy) / plotHeight;
+      const yRatio = (plotY1 + plotHeight - sy) / plotHeight;
       return {
         angle1: angle1MarginMin + (xRatio * angle1RangeWithMargin),
         angle2: angle2MarginMin + (yRatio * angle2RangeWithMargin)
       };
     }
 
-    function dataToScreen(angle1, angle2){
+    function screenToData13(sx, sy){
+      const xRatio = (sx - plotX) / plotWidth;
+      const yRatio = (plotY2 + plotHeight - sy) / plotHeight;
+      return {
+        angle1: angle1MarginMin + (xRatio * angle1RangeWithMargin),
+        angle3: angle3MarginMin + (yRatio * angle3RangeWithMargin)
+      };
+    }
+
+    function screenToData23(sx, sy){
+      const xRatio = (sx - plotX2) / plotWidth;
+      const yRatio = (plotY1 + plotHeight - sy) / plotHeight;
+      return {
+        angle2: angle2MarginMin + (xRatio * angle2RangeWithMargin),
+        angle3: angle3MarginMin + (yRatio * angle3RangeWithMargin)
+      };
+    }
+
+    function dataToScreen12(angle1, angle2){
       const xRatio = (angle1 - angle1MarginMin) / angle1RangeWithMargin;
       const x = plotX + (xRatio * plotWidth);
       const yRatio = (angle2 - angle2MarginMin) / angle2RangeWithMargin;
-      const y = plotY + plotHeight - (yRatio * plotHeight);
+      const y = plotY1 + plotHeight - (yRatio * plotHeight);
       return { x, y };
     }
 
-    // Check distance to all positions
+    function dataToScreen13(angle1, angle3){
+      const xRatio = (angle1 - angle1MarginMin) / angle1RangeWithMargin;
+      const x = plotX + (xRatio * plotWidth);
+      const yRatio = (angle3 - angle3MarginMin) / angle3RangeWithMargin;
+      const y = plotY2 + plotHeight - (yRatio * plotHeight);
+      return { x, y };
+    }
+
+    function dataToScreen32(angle3, angle2){
+      const xRatio = (angle3 - angle3MarginMin) / angle3RangeWithMargin;
+      const x = plotX2 + (xRatio * plotWidth);
+      const yRatio = (angle2 - angle2MarginMin) / angle2RangeWithMargin;
+      const y = plotY1 + plotHeight - (yRatio * plotHeight);
+      return { x, y };
+    }
+
+    // Check distance to all positions in angle1-angle2 graph
     for(const positionName in state.positions){
-      const posScreen = dataToScreen(state.positions[positionName].angle1, state.positions[positionName].angle2);
+      const posScreen = dataToScreen12(state.positions[positionName].angle1, state.positions[positionName].angle2);
       const dist = Math.hypot(px - posScreen.x, py - posScreen.y);
-      if(dist < 10 && px >= plotX && px <= plotX + plotWidth && py >= plotY && py <= plotY + plotHeight){
+      if(dist < 10 && px >= plotX && px <= plotX + plotWidth && py >= plotY1 && py <= plotY1 + plotHeight){
         state.draggingPosition = positionName;
+        state.draggingGraph = '12'; // Dragging on angle1-angle2 graph
+        canvas.setPointerCapture && canvas.setPointerCapture(evt.pointerId);
+        draw();
+        return;
+      }
+    }
+
+    // Check distance to all positions in angle1-angle3 graph
+    for(const positionName in state.positions){
+      const posScreen = dataToScreen13(state.positions[positionName].angle1, state.positions[positionName].angle3);
+      const dist = Math.hypot(px - posScreen.x, py - posScreen.y);
+      if(dist < 10 && px >= plotX && px <= plotX + plotWidth && py >= plotY2 && py <= plotY2 + plotHeight){
+        state.draggingPosition = positionName;
+        state.draggingGraph = '13'; // Dragging on angle1-angle3 graph
+        canvas.setPointerCapture && canvas.setPointerCapture(evt.pointerId);
+        draw();
+        return;
+      }
+    }
+
+    // Check distance to all positions in angle3-angle2 graph
+    for(const positionName in state.positions){
+      const posScreen = dataToScreen32(state.positions[positionName].angle3, state.positions[positionName].angle2);
+      const dist = Math.hypot(px - posScreen.x, py - posScreen.y);
+      if(dist < 10 && px >= plotX2 && px <= plotX2 + plotWidth && py >= plotY1 && py <= plotY1 + plotHeight){
+        state.draggingPosition = positionName;
+        state.draggingGraph = '32'; // Dragging on angle3-angle2 graph
         canvas.setPointerCapture && canvas.setPointerCapture(evt.pointerId);
         draw();
         return;
@@ -1772,10 +2190,13 @@ function drawPhaseChart(){
       } else if(buttonClicked.startsWith('pos') && state.positions[buttonClicked.replace('pos', 'position')]){
         // Start animating towards the selected position
         const positionName = buttonClicked.replace('pos', 'position');
+        const pos = state.positions[positionName];
         state.movingTowards = positionName;
         console.log(state.movingTowards);
-        state.targetAngle1 = constrainAngle1(state.positions[positionName].angle1);
-        state.targetAngle2 = constrainAngle2(state.positions[positionName].angle2);
+        // Only set target if angle is enabled
+        state.targetAngle1 = pos.angle1Enabled ? constrainAngle1(pos.angle1) : null;
+        state.targetAngle2 = pos.angle2Enabled ? constrainAngle2(pos.angle2) : null;
+        state.targetAngle3 = pos.angle3Enabled ? constrainAngle3(pos.angle3) : null;
         draw();
       } else {
         state.buttonHeld = buttonClicked;
@@ -1815,6 +2236,7 @@ function drawPhaseChart(){
       updatePositionInputs();
     }
     state.draggingPosition = null;
+    state.draggingGraph = null;
     state.buttonHeld = null;
     state.buttonFrameCounter = 0;
 
@@ -1860,8 +2282,476 @@ function drawPhaseChart(){
     pos2Angle2Input.value = state.positions.position2.angle2.toFixed(1);
   }
 
+  // Settings Management - localStorage functions
+  const STORAGE_KEY = 'z-frame-simulator-config';
+
+  function saveSettings() {
+    const settings = {
+      angle1: { min: angle1MinInput.value, max: angle1MaxInput.value },
+      angle2: { min: angle2MinInput.value, max: angle2MaxInput.value },
+      angle3: { min: angle3MinInput.value, max: angle3MaxInput.value },
+      showGraph12: state.showGraph12,
+      showGraph13: state.showGraph13,
+      showGraph32: state.showGraph32,
+      drawChair: state.drawChair,
+      showOscilloscope: state.showOscilloscope,
+      showSeatPanTrails: state.showSeatPanTrails,
+      positions: {
+        position1: { angle1: pos1Angle1Input.value, angle1Enabled: state.positions.position1.angle1Enabled, angle2: pos1Angle2Input.value, angle2Enabled: state.positions.position1.angle2Enabled, angle3: document.getElementById('pos1-angle3').value, angle3Enabled: state.positions.position1.angle3Enabled },
+        position2: { angle1: pos2Angle1Input.value, angle1Enabled: state.positions.position2.angle1Enabled, angle2: pos2Angle2Input.value, angle2Enabled: state.positions.position2.angle2Enabled, angle3: document.getElementById('pos2-angle3').value, angle3Enabled: state.positions.position2.angle3Enabled },
+        position3: { angle1: document.getElementById('pos3-angle1').value, angle1Enabled: state.positions.position3.angle1Enabled, angle2: document.getElementById('pos3-angle2').value, angle2Enabled: state.positions.position3.angle2Enabled, angle3: document.getElementById('pos3-angle3').value, angle3Enabled: state.positions.position3.angle3Enabled },
+        position4: { angle1: document.getElementById('pos4-angle1').value, angle1Enabled: state.positions.position4.angle1Enabled, angle2: document.getElementById('pos4-angle2').value, angle2Enabled: state.positions.position4.angle2Enabled, angle3: document.getElementById('pos4-angle3').value, angle3Enabled: state.positions.position4.angle3Enabled },
+        position5: { angle1: document.getElementById('pos5-angle1').value, angle1Enabled: state.positions.position5.angle1Enabled, angle2: document.getElementById('pos5-angle2').value, angle2Enabled: state.positions.position5.angle2Enabled, angle3: document.getElementById('pos5-angle3').value, angle3Enabled: state.positions.position5.angle3Enabled },
+        position6: { angle1: document.getElementById('pos6-angle1').value, angle1Enabled: state.positions.position6.angle1Enabled, angle2: document.getElementById('pos6-angle2').value, angle2Enabled: state.positions.position6.angle2Enabled, angle3: document.getElementById('pos6-angle3').value, angle3Enabled: state.positions.position6.angle3Enabled }
+      }
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    console.log('Saved settings:', settings);
+    console.log('localStorage contents:', localStorage.getItem(STORAGE_KEY));
+  }
+
+  function loadSettings() {
+    console.log('loadSettings called');
+    const stored = localStorage.getItem(STORAGE_KEY);
+    console.log('Raw localStorage value:', stored);
+    const defaults = {
+      positions: {
+        position1: { angle1: '15', angle2: '25', angle3: '50' },
+        position2: { angle1: '35', angle2: '10', angle3: '50' },
+        position3: { angle1: '10', angle2: '10', angle3: '50' },
+        position4: { angle1: '15', angle2: '15', angle3: '50' },
+        position5: { angle1: '20', angle2: '20', angle3: '50' },
+        position6: { angle1: '25', angle2: '25', angle3: '50' }
+      }
+    };
+    if (stored) {
+      try {
+        const settings = JSON.parse(stored);
+        console.log('Parsed settings:', settings);
+        if (settings.angle1) {
+          angle1MinInput.value = settings.angle1.min;
+          angle1MaxInput.value = settings.angle1.max;
+        }
+        if (settings.angle2) {
+          angle2MinInput.value = settings.angle2.min;
+          angle2MaxInput.value = settings.angle2.max;
+        }
+        if (settings.angle3) {
+          angle3MinInput.value = settings.angle3.min;
+          angle3MaxInput.value = settings.angle3.max;
+        }
+        state.showGraph12 = settings.showGraph12 !== undefined ? settings.showGraph12 : true;
+        state.showGraph13 = settings.showGraph13 !== undefined ? settings.showGraph13 : true;
+        state.showGraph32 = settings.showGraph32 !== undefined ? settings.showGraph32 : true;
+        state.drawChair = settings.drawChair !== undefined ? settings.drawChair : false;
+        imageCheckbox.checked = state.drawChair;
+        state.showOscilloscope = settings.showOscilloscope !== undefined ? settings.showOscilloscope : true;
+        state.showSeatPanTrails = settings.showSeatPanTrails !== undefined ? settings.showSeatPanTrails : true;
+        console.log('Loaded graph visibility - 12:', state.showGraph12, '13:', state.showGraph13, '32:', state.showGraph32);
+        console.log('Loaded graph visibility - 12:', state.showGraph12, '13:', state.showGraph13, '32:', state.showGraph32);
+        if (settings.positions) {
+          pos1Angle1Input.value = settings.positions.position1.angle1;
+          pos1Angle2Input.value = settings.positions.position1.angle2;
+          pos2Angle1Input.value = settings.positions.position2.angle1;
+          pos2Angle2Input.value = settings.positions.position2.angle2;
+          document.getElementById('pos3-angle1').value = settings.positions.position3.angle1;
+          document.getElementById('pos3-angle2').value = settings.positions.position3.angle2;
+          document.getElementById('pos4-angle1').value = settings.positions.position4.angle1;
+          document.getElementById('pos4-angle2').value = settings.positions.position4.angle2;
+          document.getElementById('pos5-angle1').value = settings.positions.position5.angle1;
+          document.getElementById('pos5-angle2').value = settings.positions.position5.angle2;
+          document.getElementById('pos6-angle1').value = settings.positions.position6.angle1;
+          document.getElementById('pos6-angle2').value = settings.positions.position6.angle2;
+
+          // Load angle3 and enabled states
+          state.positions.position1.angle3 = parseFloat(settings.positions.position1.angle3) || 50;
+          state.positions.position2.angle3 = parseFloat(settings.positions.position2.angle3) || 50;
+          state.positions.position3.angle3 = parseFloat(settings.positions.position3.angle3) || 50;
+          state.positions.position4.angle3 = parseFloat(settings.positions.position4.angle3) || 50;
+          state.positions.position5.angle3 = parseFloat(settings.positions.position5.angle3) || 50;
+          state.positions.position6.angle3 = parseFloat(settings.positions.position6.angle3) || 50;
+
+          state.positions.position1.angle1Enabled = settings.positions.position1.angle1Enabled !== false;
+          state.positions.position1.angle2Enabled = settings.positions.position1.angle2Enabled !== false;
+          state.positions.position1.angle3Enabled = settings.positions.position1.angle3Enabled !== false;
+          state.positions.position2.angle1Enabled = settings.positions.position2.angle1Enabled !== false;
+          state.positions.position2.angle2Enabled = settings.positions.position2.angle2Enabled !== false;
+          state.positions.position2.angle3Enabled = settings.positions.position2.angle3Enabled !== false;
+          state.positions.position3.angle1Enabled = settings.positions.position3.angle1Enabled !== false;
+          state.positions.position3.angle2Enabled = settings.positions.position3.angle2Enabled !== false;
+          state.positions.position3.angle3Enabled = settings.positions.position3.angle3Enabled !== false;
+          state.positions.position4.angle1Enabled = settings.positions.position4.angle1Enabled !== false;
+          state.positions.position4.angle2Enabled = settings.positions.position4.angle2Enabled !== false;
+          state.positions.position4.angle3Enabled = settings.positions.position4.angle3Enabled !== false;
+          state.positions.position5.angle1Enabled = settings.positions.position5.angle1Enabled !== false;
+          state.positions.position5.angle2Enabled = settings.positions.position5.angle2Enabled !== false;
+          state.positions.position5.angle3Enabled = settings.positions.position5.angle3Enabled !== false;
+          state.positions.position6.angle1Enabled = settings.positions.position6.angle1Enabled !== false;
+          state.positions.position6.angle2Enabled = settings.positions.position6.angle2Enabled !== false;
+          state.positions.position6.angle3Enabled = settings.positions.position6.angle3Enabled !== false;
+        } else {
+          // Use defaults if no positions in storage
+          pos1Angle1Input.value = defaults.positions.position1.angle1;
+          pos1Angle2Input.value = defaults.positions.position1.angle2;
+          pos2Angle1Input.value = defaults.positions.position2.angle1;
+          pos2Angle2Input.value = defaults.positions.position2.angle2;
+          document.getElementById('pos3-angle1').value = defaults.positions.position3.angle1;
+          document.getElementById('pos3-angle2').value = defaults.positions.position3.angle2;
+          document.getElementById('pos4-angle1').value = defaults.positions.position4.angle1;
+          document.getElementById('pos4-angle2').value = defaults.positions.position4.angle2;
+          document.getElementById('pos5-angle1').value = defaults.positions.position5.angle1;
+          document.getElementById('pos5-angle2').value = defaults.positions.position5.angle2;
+          document.getElementById('pos6-angle1').value = defaults.positions.position6.angle1;
+          document.getElementById('pos6-angle2').value = defaults.positions.position6.angle2;
+        }
+        // Update state.positions
+        state.positions.position1.angle1 = parseFloat(pos1Angle1Input.value);
+        state.positions.position1.angle2 = parseFloat(pos1Angle2Input.value);
+        state.positions.position2.angle1 = parseFloat(pos2Angle1Input.value);
+        state.positions.position2.angle2 = parseFloat(pos2Angle2Input.value);
+        state.positions.position3.angle1 = parseFloat(document.getElementById('pos3-angle1').value);
+        state.positions.position3.angle2 = parseFloat(document.getElementById('pos3-angle2').value);
+        state.positions.position4.angle1 = parseFloat(document.getElementById('pos4-angle1').value);
+        state.positions.position4.angle2 = parseFloat(document.getElementById('pos4-angle2').value);
+        state.positions.position5.angle1 = parseFloat(document.getElementById('pos5-angle1').value);
+        state.positions.position5.angle2 = parseFloat(document.getElementById('pos5-angle2').value);
+        state.positions.position6.angle1 = parseFloat(document.getElementById('pos6-angle1').value);
+        state.positions.position6.angle2 = parseFloat(document.getElementById('pos6-angle2').value);
+      } catch (e) {
+        console.error('Error loading settings:', e);
+      }
+    } else {
+      // No stored settings - ensure graph visibility defaults are set
+      state.showGraph12 = true;
+      state.showGraph13 = true;
+      state.showGraph32 = true;
+      state.drawChair = false;
+      state.showOscilloscope = true;
+      state.showSeatPanTrails = true;
+    }
+    // Always sync the modal to reflect current state, regardless of whether we loaded or are using defaults
+    syncSettingsModal();
+  }
+
+  function syncSettingsModal() {
+    console.log('syncSettingsModal - setting checkbox states: 12=', state.showGraph12, '13=', state.showGraph13, '32=', state.showGraph32);
+    document.getElementById('settings-angle1-min').value = angle1MinInput.value;
+    document.getElementById('settings-angle1-max').value = angle1MaxInput.value;
+    document.getElementById('settings-angle2-min').value = angle2MinInput.value;
+    document.getElementById('settings-angle2-max').value = angle2MaxInput.value;
+    document.getElementById('settings-angle3-min').value = angle3MinInput.value;
+    document.getElementById('settings-angle3-max').value = angle3MaxInput.value;
+    document.getElementById('settings-show-graph12').checked = state.showGraph12;
+    document.getElementById('settings-show-graph13').checked = state.showGraph13;
+    document.getElementById('settings-show-graph32').checked = state.showGraph32;
+    document.getElementById('settings-draw-chair').checked = state.drawChair;
+    document.getElementById('settings-show-oscilloscope').checked = state.showOscilloscope;
+    document.getElementById('settings-show-seatpantrails').checked = state.showSeatPanTrails;
+    console.log('After sync - checkboxes: 12=', document.getElementById('settings-show-graph12').checked, '13=', document.getElementById('settings-show-graph13').checked, '32=', document.getElementById('settings-show-graph32').checked);
+    document.getElementById('settings-pos1-angle1').value = pos1Angle1Input.value;
+    document.getElementById('settings-pos1-angle1-enabled').checked = state.positions.position1.angle1Enabled;
+    document.getElementById('settings-pos1-angle2').value = pos1Angle2Input.value;
+    document.getElementById('settings-pos1-angle2-enabled').checked = state.positions.position1.angle2Enabled;
+    document.getElementById('settings-pos1-angle3').value = state.positions.position1.angle3;
+    document.getElementById('settings-pos1-angle3-enabled').checked = state.positions.position1.angle3Enabled;
+    document.getElementById('settings-pos2-angle1').value = pos2Angle1Input.value;
+    document.getElementById('settings-pos2-angle1-enabled').checked = state.positions.position2.angle1Enabled;
+    document.getElementById('settings-pos2-angle2').value = pos2Angle2Input.value;
+    document.getElementById('settings-pos2-angle2-enabled').checked = state.positions.position2.angle2Enabled;
+    document.getElementById('settings-pos2-angle3').value = state.positions.position2.angle3;
+    document.getElementById('settings-pos2-angle3-enabled').checked = state.positions.position2.angle3Enabled;
+    document.getElementById('settings-pos3-angle1').value = document.getElementById('pos3-angle1').value;
+    document.getElementById('settings-pos3-angle1-enabled').checked = state.positions.position3.angle1Enabled;
+    document.getElementById('settings-pos3-angle2').value = document.getElementById('pos3-angle2').value;
+    document.getElementById('settings-pos3-angle2-enabled').checked = state.positions.position3.angle2Enabled;
+    document.getElementById('settings-pos3-angle3').value = state.positions.position3.angle3;
+    document.getElementById('settings-pos3-angle3-enabled').checked = state.positions.position3.angle3Enabled;
+    document.getElementById('settings-pos4-angle1').value = document.getElementById('pos4-angle1').value;
+    document.getElementById('settings-pos4-angle1-enabled').checked = state.positions.position4.angle1Enabled;
+    document.getElementById('settings-pos4-angle2').value = document.getElementById('pos4-angle2').value;
+    document.getElementById('settings-pos4-angle2-enabled').checked = state.positions.position4.angle2Enabled;
+    document.getElementById('settings-pos4-angle3').value = state.positions.position4.angle3;
+    document.getElementById('settings-pos4-angle3-enabled').checked = state.positions.position4.angle3Enabled;
+    document.getElementById('settings-pos5-angle1').value = document.getElementById('pos5-angle1').value;
+    document.getElementById('settings-pos5-angle1-enabled').checked = state.positions.position5.angle1Enabled;
+    document.getElementById('settings-pos5-angle2').value = document.getElementById('pos5-angle2').value;
+    document.getElementById('settings-pos5-angle2-enabled').checked = state.positions.position5.angle2Enabled;
+    document.getElementById('settings-pos5-angle3').value = state.positions.position5.angle3;
+    document.getElementById('settings-pos5-angle3-enabled').checked = state.positions.position5.angle3Enabled;
+    document.getElementById('settings-pos6-angle1').value = document.getElementById('pos6-angle1').value;
+    document.getElementById('settings-pos6-angle1-enabled').checked = state.positions.position6.angle1Enabled;
+    document.getElementById('settings-pos6-angle2').value = document.getElementById('pos6-angle2').value;
+    document.getElementById('settings-pos6-angle2-enabled').checked = state.positions.position6.angle2Enabled;
+    document.getElementById('settings-pos6-angle3').value = state.positions.position6.angle3;
+    document.getElementById('settings-pos6-angle3-enabled').checked = state.positions.position6.angle3Enabled;
+  }
+
+  function applySettingsFromModal() {
+    angle1MinInput.value = document.getElementById('settings-angle1-min').value;
+    angle1MaxInput.value = document.getElementById('settings-angle1-max').value;
+    angle2MinInput.value = document.getElementById('settings-angle2-min').value;
+    angle2MaxInput.value = document.getElementById('settings-angle2-max').value;
+    angle3MinInput.value = document.getElementById('settings-angle3-min').value;
+    angle3MaxInput.value = document.getElementById('settings-angle3-max').value;
+    state.showGraph12 = document.getElementById('settings-show-graph12').checked;
+    state.showGraph13 = document.getElementById('settings-show-graph13').checked;
+    state.showGraph32 = document.getElementById('settings-show-graph32').checked;
+    state.drawChair = document.getElementById('settings-draw-chair').checked;
+    imageCheckbox.checked = state.drawChair;
+    state.showOscilloscope = document.getElementById('settings-show-oscilloscope').checked;
+    state.showSeatPanTrails = document.getElementById('settings-show-seatpantrails').checked;
+    pos1Angle1Input.value = document.getElementById('settings-pos1-angle1').value;
+    pos1Angle2Input.value = document.getElementById('settings-pos1-angle2').value;
+    pos2Angle1Input.value = document.getElementById('settings-pos2-angle1').value;
+    pos2Angle2Input.value = document.getElementById('settings-pos2-angle2').value;
+    document.getElementById('pos3-angle1').value = document.getElementById('settings-pos3-angle1').value;
+    document.getElementById('pos3-angle2').value = document.getElementById('settings-pos3-angle2').value;
+    document.getElementById('pos4-angle1').value = document.getElementById('settings-pos4-angle1').value;
+    document.getElementById('pos4-angle2').value = document.getElementById('settings-pos4-angle2').value;
+    document.getElementById('pos5-angle1').value = document.getElementById('settings-pos5-angle1').value;
+    document.getElementById('pos5-angle2').value = document.getElementById('settings-pos5-angle2').value;
+    document.getElementById('pos6-angle1').value = document.getElementById('settings-pos6-angle1').value;
+    document.getElementById('pos6-angle2').value = document.getElementById('settings-pos6-angle2').value;
+
+    // Update state.positions to match
+    state.positions.position1.angle1 = parseFloat(pos1Angle1Input.value);
+    state.positions.position1.angle2 = parseFloat(pos1Angle2Input.value);
+    state.positions.position1.angle3 = parseFloat(document.getElementById('settings-pos1-angle3').value);
+    state.positions.position2.angle1 = parseFloat(pos2Angle1Input.value);
+    state.positions.position2.angle2 = parseFloat(pos2Angle2Input.value);
+    state.positions.position2.angle3 = parseFloat(document.getElementById('settings-pos2-angle3').value);
+    state.positions.position3.angle1 = parseFloat(document.getElementById('pos3-angle1').value);
+    state.positions.position3.angle2 = parseFloat(document.getElementById('pos3-angle2').value);
+    state.positions.position3.angle3 = parseFloat(document.getElementById('settings-pos3-angle3').value);
+    state.positions.position4.angle1 = parseFloat(document.getElementById('pos4-angle1').value);
+    state.positions.position4.angle2 = parseFloat(document.getElementById('pos4-angle2').value);
+    state.positions.position4.angle3 = parseFloat(document.getElementById('settings-pos4-angle3').value);
+    state.positions.position5.angle1 = parseFloat(document.getElementById('pos5-angle1').value);
+    state.positions.position5.angle2 = parseFloat(document.getElementById('pos5-angle2').value);
+    state.positions.position5.angle3 = parseFloat(document.getElementById('settings-pos5-angle3').value);
+    state.positions.position6.angle1 = parseFloat(document.getElementById('pos6-angle1').value);
+    state.positions.position6.angle2 = parseFloat(document.getElementById('pos6-angle2').value);
+    state.positions.position6.angle3 = parseFloat(document.getElementById('settings-pos6-angle3').value);
+
+    // Update enabled states
+    state.positions.position1.angle1Enabled = document.getElementById('settings-pos1-angle1-enabled').checked;
+    state.positions.position1.angle2Enabled = document.getElementById('settings-pos1-angle2-enabled').checked;
+    state.positions.position1.angle3Enabled = document.getElementById('settings-pos1-angle3-enabled').checked;
+    state.positions.position2.angle1Enabled = document.getElementById('settings-pos2-angle1-enabled').checked;
+    state.positions.position2.angle2Enabled = document.getElementById('settings-pos2-angle2-enabled').checked;
+    state.positions.position2.angle3Enabled = document.getElementById('settings-pos2-angle3-enabled').checked;
+    state.positions.position3.angle1Enabled = document.getElementById('settings-pos3-angle1-enabled').checked;
+    state.positions.position3.angle2Enabled = document.getElementById('settings-pos3-angle2-enabled').checked;
+    state.positions.position3.angle3Enabled = document.getElementById('settings-pos3-angle3-enabled').checked;
+    state.positions.position4.angle1Enabled = document.getElementById('settings-pos4-angle1-enabled').checked;
+    state.positions.position4.angle2Enabled = document.getElementById('settings-pos4-angle2-enabled').checked;
+    state.positions.position4.angle3Enabled = document.getElementById('settings-pos4-angle3-enabled').checked;
+    state.positions.position5.angle1Enabled = document.getElementById('settings-pos5-angle1-enabled').checked;
+    state.positions.position5.angle2Enabled = document.getElementById('settings-pos5-angle2-enabled').checked;
+    state.positions.position5.angle3Enabled = document.getElementById('settings-pos5-angle3-enabled').checked;
+    state.positions.position6.angle1Enabled = document.getElementById('settings-pos6-angle1-enabled').checked;
+    state.positions.position6.angle2Enabled = document.getElementById('settings-pos6-angle2-enabled').checked;
+    state.positions.position6.angle3Enabled = document.getElementById('settings-pos6-angle3-enabled').checked;
+
+    saveSettings();
+  }
+
+  function resetToDefaults() {
+    const defaults = {
+      angle1: { min: '5', max: '40' },
+      angle2: { min: '5', max: '90' },
+      angle3: { min: '5', max: '100' },
+      positions: {
+        position1: { angle1: '15', angle2: '25', angle3: '50' },
+        position2: { angle1: '35', angle2: '10', angle3: '50' },
+        position3: { angle1: '10', angle2: '10', angle3: '50' },
+        position4: { angle1: '15', angle2: '15', angle3: '50' },
+        position5: { angle1: '20', angle2: '20', angle3: '50' },
+        position6: { angle1: '25', angle2: '25', angle3: '50' }
+      }
+    };
+    angle1MinInput.value = defaults.angle1.min;
+    angle1MaxInput.value = defaults.angle1.max;
+    angle2MinInput.value = defaults.angle2.min;
+    angle2MaxInput.value = defaults.angle2.max;
+    angle3MinInput.value = defaults.angle3.min;
+    angle3MaxInput.value = defaults.angle3.max;
+    pos1Angle1Input.value = defaults.positions.position1.angle1;
+    pos1Angle2Input.value = defaults.positions.position1.angle2;
+    pos2Angle1Input.value = defaults.positions.position2.angle1;
+    pos2Angle2Input.value = defaults.positions.position2.angle2;
+    document.getElementById('pos3-angle1').value = defaults.positions.position3.angle1;
+    document.getElementById('pos3-angle2').value = defaults.positions.position3.angle2;
+    document.getElementById('pos4-angle1').value = defaults.positions.position4.angle1;
+    document.getElementById('pos4-angle2').value = defaults.positions.position4.angle2;
+    document.getElementById('pos5-angle1').value = defaults.positions.position5.angle1;
+    document.getElementById('pos5-angle2').value = defaults.positions.position5.angle2;
+    document.getElementById('pos6-angle1').value = defaults.positions.position6.angle1;
+    document.getElementById('pos6-angle2').value = defaults.positions.position6.angle2;
+
+    // Reset all enabled states to true
+    state.positions.position1.angle1Enabled = true;
+    state.positions.position1.angle2Enabled = true;
+    state.positions.position2.angle1Enabled = true;
+    state.positions.position2.angle2Enabled = true;
+    state.positions.position3.angle1Enabled = true;
+    state.positions.position3.angle2Enabled = true;
+    state.positions.position4.angle1Enabled = true;
+    state.positions.position4.angle2Enabled = true;
+    state.positions.position5.angle1Enabled = true;
+    state.positions.position5.angle2Enabled = true;
+    state.positions.position6.angle1Enabled = true;
+    state.positions.position6.angle2Enabled = true;
+
+    syncSettingsModal();
+    saveSettings();
+  }
+
+  // Settings Modal UI
+  function setupSettingsModal() {
+    const modal = document.getElementById('settings-modal');
+    const settingsBtn = document.getElementById('settings-btn');
+    const closeBtn = document.getElementById('close-settings');
+    const saveBtn = document.getElementById('save-settings');
+    const resetBtn = document.getElementById('reset-settings');
+
+    settingsBtn.addEventListener('click', () => {
+      modal.style.display = 'block';
+      syncSettingsModal();
+    });
+
+    closeBtn.addEventListener('click', () => {
+      modal.style.display = 'none';
+    });
+
+    window.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.style.display = 'none';
+      }
+    });
+
+    saveBtn.addEventListener('click', () => {
+      applySettingsFromModal();
+      modal.style.display = 'none';
+    });
+
+    resetBtn.addEventListener('click', () => {
+      if (confirm('Reset all settings to defaults?')) {
+        resetToDefaults();
+      }
+    });
+
+    // Add live update listeners to position inputs in modal
+    const positionInputIds = [
+      'settings-pos1-angle1', 'settings-pos1-angle2', 'settings-pos1-angle3',
+      'settings-pos2-angle1', 'settings-pos2-angle2', 'settings-pos2-angle3',
+      'settings-pos3-angle1', 'settings-pos3-angle2', 'settings-pos3-angle3',
+      'settings-pos4-angle1', 'settings-pos4-angle2', 'settings-pos4-angle3',
+      'settings-pos5-angle1', 'settings-pos5-angle2', 'settings-pos5-angle3',
+      'settings-pos6-angle1', 'settings-pos6-angle2', 'settings-pos6-angle3'
+    ];
+
+    positionInputIds.forEach(id => {
+      const input = document.getElementById(id);
+      if(input){
+        input.addEventListener('input', () => {
+          // Update state.positions immediately
+          const match = id.match(/settings-pos(\d+)-angle(\d+)/);
+          if(match){
+            const posNum = match[1];
+            const angleNum = match[2];
+            const posKey = `position${posNum}`;
+            const angleKey = `angle${angleNum}`;
+            state.positions[posKey][angleKey] = parseFloat(input.value) || 0;
+            draw(); // Redraw chart immediately
+          }
+        });
+      }
+    });
+
+    // Add event listeners to enabled checkboxes
+    const enabledCheckboxIds = [
+      'settings-pos1-angle1-enabled', 'settings-pos1-angle2-enabled', 'settings-pos1-angle3-enabled',
+      'settings-pos2-angle1-enabled', 'settings-pos2-angle2-enabled', 'settings-pos2-angle3-enabled',
+      'settings-pos3-angle1-enabled', 'settings-pos3-angle2-enabled', 'settings-pos3-angle3-enabled',
+      'settings-pos4-angle1-enabled', 'settings-pos4-angle2-enabled', 'settings-pos4-angle3-enabled',
+      'settings-pos5-angle1-enabled', 'settings-pos5-angle2-enabled', 'settings-pos5-angle3-enabled',
+      'settings-pos6-angle1-enabled', 'settings-pos6-angle2-enabled', 'settings-pos6-angle3-enabled'
+    ];
+
+    enabledCheckboxIds.forEach(id => {
+      const checkbox = document.getElementById(id);
+      if(checkbox){
+        checkbox.addEventListener('change', () => {
+          // Update state.positions enabled flag immediately
+          const match = id.match(/settings-pos(\d+)-angle(\d+)-enabled/);
+          if(match){
+            const posNum = match[1];
+            const angleNum = match[2];
+            const posKey = `position${posNum}`;
+            const enabledKey = `angle${angleNum}Enabled`;
+            state.positions[posKey][enabledKey] = checkbox.checked;
+            saveSettings(); // Save immediately when toggling
+            draw(); // Redraw chart immediately
+          }
+        });
+      }
+    });
+
+    // Add event listeners to graph visibility checkboxes
+    const graphCheckboxIds = ['settings-show-graph12', 'settings-show-graph13', 'settings-show-graph32'];
+    graphCheckboxIds.forEach(id => {
+      const checkbox = document.getElementById(id);
+      if(checkbox){
+        checkbox.addEventListener('change', () => {
+          const match = id.match(/settings-show-graph(\d+)/);
+          if(match){
+            const graphNum = match[1];
+            const graphKey = `showGraph${graphNum}`;
+            state[graphKey] = checkbox.checked;
+            saveSettings(); // Save immediately when toggling
+            draw(); // Redraw chart immediately
+          }
+        });
+      }
+    });
+
+    // Add event listener to draw chair checkbox
+    const drawChairCheckbox = document.getElementById('settings-draw-chair');
+    if(drawChairCheckbox){
+      drawChairCheckbox.addEventListener('change', () => {
+        state.drawChair = drawChairCheckbox.checked;
+        imageCheckbox.checked = state.drawChair;
+        saveSettings();
+        draw();
+      });
+    }
+
+    // Add event listener to oscilloscope checkbox
+    const oscilloscopeCheckbox = document.getElementById('settings-show-oscilloscope');
+    if(oscilloscopeCheckbox){
+      oscilloscopeCheckbox.addEventListener('change', () => {
+        state.showOscilloscope = oscilloscopeCheckbox.checked;
+        saveSettings();
+        draw();
+      });
+    }
+
+    // Add event listener to seat pan trails checkbox
+    const seatPanTrailsCheckbox = document.getElementById('settings-show-seatpantrails');
+    if(seatPanTrailsCheckbox){
+      seatPanTrailsCheckbox.addEventListener('change', () => {
+        state.showSeatPanTrails = seatPanTrailsCheckbox.checked;
+        saveSettings();
+        draw();
+      });
+    }
+  }
+
   // Wire events
   function addListeners(){
+    setupSettingsModal();
+
     canvas.addEventListener('pointermove', onPointerMove);
     canvas.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointerup', onPointerUp);
@@ -1900,6 +2790,7 @@ function drawPhaseChart(){
 
   // Initialize
   function init(){
+    loadSettings();
     resizeCanvas();
     addListeners();
     updateDisplays();

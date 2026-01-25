@@ -14,38 +14,132 @@
     </header>
 
     <section class="controls">
-      <div class="angles">
-        <div>
-          Middle (angle1): <span id="angle1-val">0.0°</span>
-          <label>Min: <input id="angle1-min" type="number" value="5" style="width: 60px;" /></label>
-          <label>Max: <input id="angle1-max" type="number" value="40" style="width: 60px;" /></label>
-        </div>
-        <div>
-          Seat pan (angle2): <span id="angle2-val">0.0°</span>
-          <label>Min: <input id="angle2-min" type="number" value="5" style="width: 60px;" /></label>
-          <label>Max: <input id="angle2-max" type="number" value="90" style="width: 60px;" /></label>
-        </div>
-        <div>
-          Backrest (angle3): <span id="angle3-val">0.0°</span>
-          <label>Min: <input id="angle3-min" type="number" value="5" style="width: 60px;" /></label>
-          <label>Max: <input id="angle3-max" type="number" value="100" style="width: 60px;" /></label>
-        </div>
-        <strong>Position 1:</strong>
-        <div class="angle-limits">
-          <label>angle1: <input id="pos1-angle1" type="number" step="0.1" value="15" style="width: 60px;" /></label>
-          <label>angle2: <input id="pos1-angle2" type="number" step="0.1" value="25" style="width: 60px;" /></label>
-        </div>
-        <strong>Position 2:</strong>
-        <div class="angle-limits">
-          <label>angle1: <input id="pos2-angle1" type="number" step="0.1" value="35" style="width: 60px;" /></label>
-          <label>angle2: <input id="pos2-angle2" type="number" step="0.1" value="10" style="width: 60px;" /></label>
-
-        </div>
-      </div>
+      <button id="settings-btn" style="padding: 8px 16px; background-color: #2b7cff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">⚙️ Settings</button>
+      <button id="clear-graph-btn" style="padding: 8px 16px; background-color: #ff6b6b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Clear Graph</button>
     </section>
 
+    <!-- Hidden input elements for configuration (managed by settings modal) -->
+    <span id="angle1-val" style="display: none;"></span>
+    <span id="angle2-val" style="display: none;"></span>
+    <span id="angle3-val" style="display: none;"></span>
+    <input type="hidden" id="angle1-min" value="5" />
+    <input type="hidden" id="angle1-max" value="40" />
+    <input type="hidden" id="angle2-min" value="5" />
+    <input type="hidden" id="angle2-max" value="90" />
+    <input type="hidden" id="angle3-min" value="5" />
+    <input type="hidden" id="angle3-max" value="100" />
+    <input type="hidden" id="pos1-angle1" value="15" />
+    <input type="hidden" id="pos1-angle2" value="25" />
+    <input type="hidden" id="pos1-angle3" value="50" />
+    <input type="hidden" id="pos2-angle1" value="35" />
+    <input type="hidden" id="pos2-angle2" value="10" />
+    <input type="hidden" id="pos2-angle3" value="50" />
+    <input type="hidden" id="pos3-angle1" value="10" />
+    <input type="hidden" id="pos3-angle2" value="10" />
+    <input type="hidden" id="pos3-angle3" value="50" />
+    <input type="hidden" id="pos4-angle1" value="15" />
+    <input type="hidden" id="pos4-angle2" value="15" />
+    <input type="hidden" id="pos4-angle3" value="50" />
+    <input type="hidden" id="pos5-angle1" value="20" />
+    <input type="hidden" id="pos5-angle2" value="20" />
+    <input type="hidden" id="pos5-angle3" value="50" />
+    <input type="hidden" id="pos6-angle1" value="25" />
+    <input type="hidden" id="pos6-angle2" value="25" />
+    <input type="hidden" id="pos6-angle3" value="50" />
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Configuration Settings</h2>
+          <button class="close-btn" id="close-settings">&times;</button>
+        </div>
+
+        <div style="display: flex; gap: 20px; flex: 1; padding: 20px; overflow: hidden;">
+          <!-- Left Column -->
+          <div style="flex: 0 0 320px; overflow-y: auto;">
+            <div>
+              <h3>Angle Limits</h3>
+              <label style="display: block; margin-bottom: 10px;">
+                <strong>Angle1 (Middle Member)</strong><br/>
+                Min: <input id="settings-angle1-min" type="number" style="width: 80px;" />
+                Max: <input id="settings-angle1-max" type="number" style="width: 80px;" />
+              </label>
+              <label style="display: block; margin-bottom: 10px;">
+                <strong>Angle2 (Seat Pan)</strong><br/>
+                Min: <input id="settings-angle2-min" type="number" style="width: 80px;" />
+                Max: <input id="settings-angle2-max" type="number" style="width: 80px;" />
+              </label>
+              <label style="display: block; margin-bottom: 20px;">
+                <strong>Angle3 (Backrest)</strong><br/>
+                Min: <input id="settings-angle3-min" type="number" style="width: 80px;" />
+                Max: <input id="settings-angle3-max" type="number" style="width: 80px;" />
+              </label>
+            </div>
+
+            <div style="border-top: 1px solid #ccc; padding-top: 20px;">
+              <h3>Display Options</h3>
+              <label style="display: block; margin-bottom: 8px;"><input id="settings-show-graph12" type="checkbox" checked /> Show Angle1 vs Angle2 Graph</label>
+              <label style="display: block; margin-bottom: 8px;"><input id="settings-show-graph13" type="checkbox" checked /> Show Angle1 vs Angle3 Graph</label>
+              <label style="display: block; margin-bottom: 8px;"><input id="settings-show-graph32" type="checkbox" checked /> Show Angle3 vs Angle2 Graph</label>
+              <label style="display: block; margin-bottom: 8px;"><input id="settings-draw-chair" type="checkbox" /> Draw Chair Images</label>
+              <label style="display: block; margin-bottom: 8px;"><input id="settings-show-oscilloscope" type="checkbox" checked /> Show Oscilloscope Graph</label>
+              <label style="display: block;"><input id="settings-show-seatpantrails" type="checkbox" checked /> Show Seat Pan Trails</label>
+            </div>
+          </div>
+
+          <!-- Right Column -->
+          <div style="flex: 1; overflow-y: auto; border-left: 1px solid #ccc; padding-left: 20px;">
+            <h3>Saved Positions</h3>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+              <div class="position-group">
+                <h4>Position 1</h4>
+                <label>Angle1: <input id="settings-pos1-angle1" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos1-angle1-enabled" type="checkbox" checked /></label>
+                <label>Angle2: <input id="settings-pos1-angle2" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos1-angle2-enabled" type="checkbox" checked /></label>
+                <label>Angle3: <input id="settings-pos1-angle3" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos1-angle3-enabled" type="checkbox" checked /></label>
+              </div>
+              <div class="position-group">
+                <h4>Position 2</h4>
+                <label>Angle1: <input id="settings-pos2-angle1" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos2-angle1-enabled" type="checkbox" checked /></label>
+                <label>Angle2: <input id="settings-pos2-angle2" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos2-angle2-enabled" type="checkbox" checked /></label>
+                <label>Angle3: <input id="settings-pos2-angle3" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos2-angle3-enabled" type="checkbox" checked /></label>
+              </div>
+              <div class="position-group">
+                <h4>Position 3</h4>
+                <label>Angle1: <input id="settings-pos3-angle1" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos3-angle1-enabled" type="checkbox" checked /></label>
+                <label>Angle2: <input id="settings-pos3-angle2" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos3-angle2-enabled" type="checkbox" checked /></label>
+                <label>Angle3: <input id="settings-pos3-angle3" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos3-angle3-enabled" type="checkbox" checked /></label>
+              </div>
+              <div class="position-group">
+                <h4>Position 4</h4>
+                <label>Angle1: <input id="settings-pos4-angle1" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos4-angle1-enabled" type="checkbox" checked /></label>
+                <label>Angle2: <input id="settings-pos4-angle2" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos4-angle2-enabled" type="checkbox" checked /></label>
+                <label>Angle3: <input id="settings-pos4-angle3" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos4-angle3-enabled" type="checkbox" checked /></label>
+              </div>
+              <div class="position-group">
+                <h4>Position 5</h4>
+                <label>Angle1: <input id="settings-pos5-angle1" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos5-angle1-enabled" type="checkbox" checked /></label>
+                <label>Angle2: <input id="settings-pos5-angle2" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos5-angle2-enabled" type="checkbox" checked /></label>
+                <label>Angle3: <input id="settings-pos5-angle3" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos5-angle3-enabled" type="checkbox" checked /></label>
+              </div>
+              <div class="position-group">
+                <h4>Position 6</h4>
+                <label>Angle1: <input id="settings-pos6-angle1" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos6-angle1-enabled" type="checkbox" checked /></label>
+                <label>Angle2: <input id="settings-pos6-angle2" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos6-angle2-enabled" type="checkbox" checked /></label>
+                <label>Angle3: <input id="settings-pos6-angle3" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos6-angle3-enabled" type="checkbox" checked /></label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button id="save-settings" style="padding: 8px 16px; background-color: #66bb6a; color: white; border: none; border-radius: 4px; cursor: pointer;">Save</button>
+          <button id="reset-settings" style="padding: 8px 16px; background-color: #ff8a65; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 8px;">Reset to Defaults</button>
+        </div>
+      </div>
+    </div>
+
     <div class="sim-wrap">
-      <button id="clear-graph-btn" style="margin-top: 10px; padding: 8px 16px; background-color: #ff6b6b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Clear Graph</button>
       <canvas id="canvas"></canvas>
     </div>
   </div>
