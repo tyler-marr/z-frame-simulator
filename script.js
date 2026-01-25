@@ -89,11 +89,11 @@
     angleMultiplier : 0.80,
     seatPanTrails: config.seatPanPoints.map(() => []),
     showGraph12: true,  // Show angle1 vs angle2 graph
-    showGraph13: true,  // Show angle1 vs angle3 graph
-    showGraph32: true,  // Show angle3 vs angle2 graph
+    showGraph13: false,  // Show angle1 vs angle3 graph
+    showGraph32: false,  // Show angle3 vs angle2 graph
     drawChair: false,   // Draw chair images
-    showOscilloscope: true,  // Show oscilloscope graph
-    showSeatPanTrails: true,  // Show seat pan trails
+    showOscilloscope: false,  // Show oscilloscope graph
+    showSeatPanTrails: false,  // Show seat pan trails
   };
 
   const layout = {
@@ -2423,11 +2423,11 @@ function drawPhaseChart(){
     } else {
       // No stored settings - ensure graph visibility defaults are set
       state.showGraph12 = true;
-      state.showGraph13 = true;
-      state.showGraph32 = true;
+      state.showGraph13 = false;
+      state.showGraph32 = false;
       state.drawChair = false;
-      state.showOscilloscope = true;
-      state.showSeatPanTrails = true;
+      state.showOscilloscope = false;
+      state.showSeatPanTrails = false;
     }
     // Always sync the modal to reflect current state, regardless of whether we loaded or are using defaults
     syncSettingsModal();
@@ -2602,6 +2602,13 @@ function drawPhaseChart(){
     state.positions.position5.angle2Enabled = true;
     state.positions.position6.angle1Enabled = true;
     state.positions.position6.angle2Enabled = true;
+
+    state.showGraph12 = true;
+    state.showGraph13 = false;
+    state.showGraph32 = false;
+    state.drawChair = false;
+    state.showOscilloscope = false;
+    state.showSeatPanTrails = false;
 
     syncSettingsModal();
     saveSettings();
