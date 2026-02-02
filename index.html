@@ -9,8 +9,16 @@
 <body>
   <div class="container">
     <header>
-      <h1>Z-frame Wheelchair Simulator</h1>
-      <p>Drag the middle member (angle1) or the seat pan (angle2) to rotate about their pivots.</p>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <h1 id="header-title">Z-frame Wheelchair Simulator</h1>
+          <p id="header-subtitle">Drag the middle member (angle1) or the seat pan (angle2) to rotate about their pivots.</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button id="mode-zframe" class="mode-btn mode-btn-active" style="padding: 8px 16px; background-color: #1976D2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;">Z-Frame</button>
+          <button id="mode-shear" class="mode-btn" style="padding: 8px 16px; background-color: #D32F2F; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;">Shear</button>
+        </div>
+      </div>
     </header>
 
     <section class="controls">
@@ -19,11 +27,17 @@
     </section>
 
     <!-- Hidden input elements for configuration (managed by settings modal) -->
+    <!-- Z-Frame Mode -->
     <span id="angle1-val" style="display: none;"></span>
     <span id="angle2-val" style="display: none;"></span>
     <span id="angle3-val" style="display: none;"></span>
     <input type="hidden" id="angle1-min" value="5" />
     <input type="hidden" id="angle1-max" value="40" />
+
+    <!-- Shear Mode -->
+    <span id="shear-recline-val" style="display: none;"></span>
+    <input type="hidden" id="shear-recline-min" value="0" />
+    <input type="hidden" id="shear-recline-max" value="90" />
     <input type="hidden" id="angle2-min" value="5" />
     <input type="hidden" id="angle2-max" value="90" />
     <input type="hidden" id="angle3-min" value="5" />

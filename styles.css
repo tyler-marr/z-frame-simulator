@@ -280,3 +280,20 @@ canvas {
     flex-shrink: 0;
     justify-content: flex-end;
 }
+
+.mode-btn {
+    transition: all 0.2s ease;
+}
+
+.mode-btn-active {
+    background-color: #1976D2 !important;
+}
+
+.mode-btn:not(.mode-btn-active) {
+    background-color: #D32F2F;
+    opacity: 0.8;
+}
+
+.mode-btn:hover {
+    opacity: 1;
+}

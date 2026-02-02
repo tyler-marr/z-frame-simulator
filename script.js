@@ -59,9 +59,10 @@
 
   // State
   const state = {
+    mode: 'zframe', // 'zframe' or 'shear'
     angle1: 30, // degrees (middle)
     angle2: 30, // degrees (seat pan)
-    angle3: 30, // degrees (backrest)
+    angle3: 30, // degrees (backrest / recline in Shear mode)
     dragging: null, // 'angle1' | 'angle2' | null
     hovering: null, // same
     buttonHeld: null, // 'increase' | 'decrease' | null (for hold-down behavior)
@@ -139,6 +140,10 @@
 
     maintainRatioDown: { x: 90, y: 550, width: 60, height: 25, label: '◀' },
     maintainRatioUp: { x: 160, y: 550, width: 60, height: 25, label: '▶' },
+
+    // Shear mode buttons
+    shearReclineDown: { x: 90, y: 300, width: 60, height: 25, label: '◀ Recline', group: 'Recline' },
+    shearReclineUp: { x: 160, y: 300, width: 60, height: 25, label: 'Recline ▶', group: 'Recline' },
   };
 
   // Canvas checkbox
@@ -552,6 +557,60 @@
     return Math.hypot(dx,dy);
   }
 
+  // Shear Mode Drawing Functions
+  function drawShear(){
+    // Use same positioning as Z-frame for consistency
+    const centerX = config.basePivot.x;
+    const centerY = config.basePivot.y;
+
+    // Seatpan: horizontal line in the middle
+    const seatPanLength = 200;
+    const seatPanStartX = centerX - seatPanLength / 2;
+    const seatPanEndX = centerX + seatPanLength / 2;
+    const seatPanY = centerY;
+
+    // Draw seatpan (horizontal line)
+    ctx.strokeStyle = '#1976D2';
+    ctx.lineWidth = 12;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(seatPanStartX, seatPanY);
+    ctx.lineTo(seatPanEndX, seatPanY);
+    ctx.stroke();
+
+    // Recline: rotates from right end of seatpan
+    const reclineLength = 200;
+    const reclineAngleRad = d2r(state.angle3);
+    const reclineEndX = seatPanEndX + reclineLength * Math.cos(reclineAngleRad);
+    const reclineEndY = seatPanY - reclineLength * Math.sin(reclineAngleRad);
+
+    // Draw recline line
+    ctx.strokeStyle = (state.hovering === 'shearRecline' || state.dragging === 'shearRecline') ? '#FF6B35' : '#D32F2F';
+    ctx.lineWidth = 12;
+    ctx.beginPath();
+    ctx.moveTo(seatPanEndX, seatPanY);
+    ctx.lineTo(reclineEndX, reclineEndY);
+    ctx.stroke();
+
+    // Draw pivot point at right end of seatpan
+    ctx.fillStyle = '#333';
+    ctx.beginPath();
+    ctx.arc(seatPanEndX, seatPanY, 10, 0, 2 * Math.PI);
+    ctx.fill();
+
+    // Draw angle arc between seatpan and recline (from 0 to negative angle3 for counterclockwise)
+    drawAngleArc(seatPanEndX, seatPanY, 0, -state.angle3, 60, '#333', `${roundHalfDegree(state.angle3)}°`);
+  }
+
+  function drawShearText(){
+    ctx.fillStyle = '#000';
+    ctx.font = 'bold 18px system-ui,Segoe UI,Roboto,Arial';
+    ctx.textAlign = 'left';
+
+    const startY = 50;
+    ctx.fillText(`Recline Angle: ${roundHalfDegree(state.angle3)}°`, 20, startY);
+  }
+
   function drawZBase(){
     // base line
     ctx.strokeStyle = '#333';
@@ -719,16 +778,22 @@
 function draw(){
   clearCanvas();
   drawGrid();
-  drawZ();
-  drawText();
+
+  if(state.mode === 'zframe'){
+    drawZ();
+    drawText();
+    drawPictureOfChair();
+    if(state.showOscilloscope) drawOscilloscope();
+    drawPhaseChart();
+    drawJoystick();
+    drawSlider();
+    drawCanvasCheckbox();
+  } else if(state.mode === 'shear'){
+    drawShear();
+    drawShearText();
+  }
+
   drawButtons();
-  drawPictureOfChair();
-  drawCanvasCheckbox();
-  // drawImageCheckbox();
-  drawJoystick();
-  if(state.showOscilloscope) drawOscilloscope();
-  drawPhaseChart();
-  drawSlider(); // Draw the slider
 }
 
 function LightenDarkenColor(hex, amount) {
@@ -781,6 +846,38 @@ function drawButton(btn, isPressed, bgColor = null){
 }
 
 function drawButtons(){
+  // In Shear mode, only draw Shear-specific buttons
+  if(state.mode === 'shear'){
+    const buttonXStart = layout.buttonSection.x + 100;
+    const buttonYStart = 150;
+    const buttonSpacing = 65;
+    let x = buttonXStart;
+    let y = buttonYStart;
+    let buttonsInRow = 0;
+
+    // Draw Shear mode button labels
+    ctx.fillStyle = '#333';
+    ctx.font = '11px system-ui,Segoe UI,Roboto,Arial';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Recline', x - 8, y + 12.5);
+
+    // Draw Recline buttons
+    const shearReclineDownBtn = buttons.shearReclineDown;
+    const shearReclineUpBtn = buttons.shearReclineUp;
+
+    shearReclineDownBtn.x = x;
+    shearReclineDownBtn.y = y;
+    drawButton(shearReclineDownBtn, state.buttonHeld === 'shearReclineDown', '#0066cc');
+
+    shearReclineUpBtn.x = x + buttonSpacing;
+    shearReclineUpBtn.y = y;
+    drawButton(shearReclineUpBtn, state.buttonHeld === 'shearReclineUp', '#0066cc');
+
+    return;
+  }
+
+  // Z-frame mode: draw all buttons
   const buttonXStart = layout.buttonSection.x + 100; // Start X position of the buttons section
   const buttonYStart = 150; // Start Y position of the buttons section
   const buttonSpacing = 65; // Horizontal spacing between buttons in a row
@@ -810,6 +907,9 @@ function drawButtons(){
   });
 
   Object.keys(buttons).forEach(key => {
+    // Skip Shear-specific buttons in Z-frame mode
+    if(key.startsWith('shear')) return;
+
     const btn = buttons[key];
     btn.x = x;
     btn.y = y;
@@ -1627,6 +1727,25 @@ function drawPhaseChart(){
       if(state.buttonFrameCounter >= 3){
         state.buttonFrameCounter = 0;
 
+        // Shear mode button handling
+        if(state.mode === 'shear'){
+          if(state.buttonHeld === 'shearReclineUp' || state.buttonHeld === 'shearReclineDown'){
+            const delta = state.buttonHeld === 'shearReclineUp' ? 0.4 : -0.4;
+            let newRecline = state.angle3 + delta;
+
+            // Constrain recline angle (use angle3 limits)
+            const { min: angle3Min, max: angle3Max } = getAngle3Limits();
+            newRecline = Math.max(angle3Min, Math.min(angle3Max, newRecline));
+
+            if(Math.abs(newRecline - state.angle3) > 0.01){
+              state.angle3 = newRecline;
+              updateDisplays();
+            }
+          }
+          requestAnimationFrame(updateHeldButton);
+          return;
+        }
+
         // Determine which angle to control and the direction
         const isIncrease = state.buttonHeld === 'increase' || state.buttonHeld === 'act1Up' || state.buttonHeld === 'act2Up' || state.buttonHeld === 'z1Up' || state.buttonHeld === 'z2Up' || state.buttonHeld === 'zElevateUp' || state.buttonHeld === 'zTiltUp';
         const delta = isIncrease ? 0.4 : -0.4;
@@ -1969,6 +2088,45 @@ function drawPhaseChart(){
       return;
     }
 
+    // Handle Shear mode dragging
+    if(state.mode === 'shear'){
+      const centerX = config.basePivot.x;
+      const centerY = config.basePivot.y;
+      const seatPanLength = 200;
+      const seatPanEndX = centerX + seatPanLength / 2;
+      const reclineLength = 200;
+      const reclineAngleRad = d2r(state.angle3);
+      const reclineEndX = seatPanEndX + reclineLength * Math.cos(reclineAngleRad);
+      const reclineEndY = centerY - reclineLength * Math.sin(reclineAngleRad);
+
+      if(state.dragging === 'shearRecline'){
+        // Calculate angle from cursor position
+        const dx = px - seatPanEndX;
+        const dy = centerY - py; // Y is inverted in canvas
+        let deg = r2d(Math.atan2(dy, dx));
+        deg = roundHalfDegree(deg);
+        deg = constrainAngle3(deg);
+
+        if(deg !== state.angle3){
+          state.angle3 = deg;
+        }
+        canvas.style.cursor = 'grabbing';
+      } else {
+        // Check for hover
+        const dRecline = pointToSegmentDistance(px, py, seatPanEndX, centerY, reclineEndX, reclineEndY);
+
+        if(dRecline < config.hoverThreshold){
+          state.hovering = 'shearRecline';
+          canvas.style.cursor = 'grab';
+        } else {
+          state.hovering = null;
+          canvas.style.cursor = 'default';
+        }
+      }
+      draw();
+      return;
+    }
+
     const midEnd = middleEnd();
     const seatEndPt = seatEnd();
     const rightArmEndPt = rightArmEnd();
@@ -2047,6 +2205,27 @@ function drawPhaseChart(){
     const rect = canvas.getBoundingClientRect();
     const px = evt.clientX - rect.left;
     const py = evt.clientY - rect.top;
+
+    // Handle Shear mode dragging detection
+    if(state.mode === 'shear'){
+      const centerX = config.basePivot.x;
+      const centerY = config.basePivot.y;
+      const seatPanLength = 200;
+      const seatPanEndX = centerX + seatPanLength / 2;
+      const reclineLength = 200;
+      const reclineAngleRad = d2r(state.angle3);
+      const reclineEndX = seatPanEndX + reclineLength * Math.cos(reclineAngleRad);
+      const reclineEndY = centerY - reclineLength * Math.sin(reclineAngleRad);
+
+      const dRecline = pointToSegmentDistance(px, py, seatPanEndX, centerY, reclineEndX, reclineEndY);
+
+      if(dRecline < 15){
+        state.dragging = 'shearRecline';
+        canvas.setPointerCapture && canvas.setPointerCapture(evt.pointerId);
+        draw();
+        return;
+      }
+    }
 
     // Check if clicking on position markers in phase graphs
     const { min: angle1Min, max: angle1Max } = getAngle1Limits();
@@ -2166,6 +2345,11 @@ function drawPhaseChart(){
     // Check if a button was clicked
     const buttonClicked = getButtonAtPoint(px, py);
     if(buttonClicked){
+      // In Shear mode, only accept Shear-specific buttons
+      if(state.mode === 'shear' && !buttonClicked.startsWith('shear')){
+        return;
+      }
+
       if (buttonClicked === 'maintainRatioUp' || buttonClicked === 'maintainRatioDown') {
         state.buttonHeld = buttonClicked;
         // Record the starting values when the button is first pressed
@@ -2269,9 +2453,13 @@ function drawPhaseChart(){
 
   // UI update
   function updateDisplays(){
-    angle1Display.textContent = `${state.angle1.toFixed(1)}°`;
-    angle2Display.textContent = `${state.angle2.toFixed(1)}°`;
-    angle3Display.textContent = `${state.angle3.toFixed(1)}°`;
+    if(state.mode === 'zframe'){
+      angle1Display.textContent = `${state.angle1.toFixed(1)}°`;
+      angle2Display.textContent = `${state.angle2.toFixed(1)}°`;
+      angle3Display.textContent = `${state.angle3.toFixed(1)}°`;
+    } else if(state.mode === 'shear'){
+      document.getElementById('shear-recline-val').textContent = `${state.angle3.toFixed(1)}°`;
+    }
   }
 
   // Update position input fields
@@ -2287,6 +2475,7 @@ function drawPhaseChart(){
 
   function saveSettings() {
     const settings = {
+      mode: state.mode,
       angle1: { min: angle1MinInput.value, max: angle1MaxInput.value },
       angle2: { min: angle2MinInput.value, max: angle2MaxInput.value },
       angle3: { min: angle3MinInput.value, max: angle3MaxInput.value },
@@ -2328,6 +2517,9 @@ function drawPhaseChart(){
       try {
         const settings = JSON.parse(stored);
         console.log('Parsed settings:', settings);
+        if (settings.mode) {
+          state.mode = settings.mode;
+        }
         if (settings.angle1) {
           angle1MinInput.value = settings.angle1.min;
           angle1MaxInput.value = settings.angle1.max;
@@ -2639,6 +2831,7 @@ function drawPhaseChart(){
 
     saveBtn.addEventListener('click', () => {
       applySettingsFromModal();
+      saveSettings();
       modal.style.display = 'none';
     });
 
@@ -2755,6 +2948,26 @@ function drawPhaseChart(){
     }
   }
 
+  // Update UI when switching modes
+  function updateModeUI(){
+    const headerTitle = document.getElementById('header-title');
+    const headerSubtitle = document.getElementById('header-subtitle');
+    const modeZframeBtn = document.getElementById('mode-zframe');
+    const modeShearBtn = document.getElementById('mode-shear');
+
+    if(state.mode === 'zframe'){
+      headerTitle.textContent = 'Z-frame Wheelchair Simulator';
+      headerSubtitle.textContent = 'Drag the middle member (angle1) or the seat pan (angle2) to rotate about their pivots.';
+      if(modeZframeBtn) modeZframeBtn.classList.add('mode-btn-active');
+      if(modeShearBtn) modeShearBtn.classList.remove('mode-btn-active');
+    } else if(state.mode === 'shear'){
+      headerTitle.textContent = 'Shear Wheelchair Simulator';
+      headerSubtitle.textContent = 'Use the Recline buttons to adjust the backrest angle.';
+      if(modeZframeBtn) modeZframeBtn.classList.remove('mode-btn-active');
+      if(modeShearBtn) modeShearBtn.classList.add('mode-btn-active');
+    }
+  }
+
   // Wire events
   function addListeners(){
     setupSettingsModal();
@@ -2762,6 +2975,28 @@ function drawPhaseChart(){
     canvas.addEventListener('pointermove', onPointerMove);
     canvas.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointerup', onPointerUp);
+
+    // Mode switching buttons
+    const modeZframeBtn = document.getElementById('mode-zframe');
+    const modeShearBtn = document.getElementById('mode-shear');
+
+    if(modeZframeBtn){
+      modeZframeBtn.addEventListener('click', () => {
+        state.mode = 'zframe';
+        updateModeUI();
+        saveSettings();
+        draw();
+      });
+    }
+
+    if(modeShearBtn){
+      modeShearBtn.addEventListener('click', () => {
+        state.mode = 'shear';
+        updateModeUI();
+        saveSettings();
+        draw();
+      });
+    }
 
     window.addEventListener('resize', () => {
       layout.graphSection.x = window.innerWidth - 320; // Dynamically adjust graph position
@@ -2798,6 +3033,7 @@ function drawPhaseChart(){
   // Initialize
   function init(){
     loadSettings();
+    updateModeUI();
     resizeCanvas();
     addListeners();
     updateDisplays();
