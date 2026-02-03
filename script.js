@@ -72,12 +72,12 @@
     cursorX: 0,
     cursorY: 0,
     positions:{
-      position1: { angle1: 15, angle1Enabled: true, angle2: 25, angle2Enabled: true, angle3: 50, angle3Enabled: true }, // draggable point 1 on phase graph
-      position2: { angle1: 35, angle1Enabled: true, angle2: 10, angle2Enabled: true, angle3: 50, angle3Enabled: true }, // draggable point 2 on phase graph
-      position3: { angle1: 10, angle1Enabled: true, angle2: 10, angle2Enabled: true, angle3: 50, angle3Enabled: true }, // draggable point 3 on phase graph
-      position4: { angle1: 15, angle1Enabled: true, angle2: 15, angle2Enabled: true, angle3: 50, angle3Enabled: true }, // draggable point 4 on phase graph
-      position5: { angle1: 20, angle1Enabled: true, angle2: 20, angle2Enabled: true, angle3: 50, angle3Enabled: true }, // draggable point 5 on phase graph
-      position6: { angle1: 25, angle1Enabled: true, angle2: 25, angle2Enabled: true, angle3: 50, angle3Enabled: true }, // draggable point 6 on phase graph
+      position1: { angle1: 15, angle1Enabled: true, angle2: 25, angle2Enabled: true, angle3: 35, angle3Enabled: true, shearPercent: 30, shearPercentEnabled: true }, // draggable point 1 on phase graph
+      position2: { angle1: 35, angle1Enabled: true, angle2: 10, angle2Enabled: true, angle3: 65, angle3Enabled: true, shearPercent: 70, shearPercentEnabled: true }, // draggable point 2 on phase graph
+      position3: { angle1: 10, angle1Enabled: true, angle2: 10, angle2Enabled: true, angle3: 50, angle3Enabled: true, shearPercent: 50, shearPercentEnabled: false }, // draggable point 3 on phase graph
+      position4: { angle1: 15, angle1Enabled: true, angle2: 15, angle2Enabled: true, angle3: 50, angle3Enabled: true, shearPercent: 50, shearPercentEnabled: false }, // draggable point 4 on phase graph
+      position5: { angle1: 20, angle1Enabled: true, angle2: 20, angle2Enabled: true, angle3: 50, angle3Enabled: true, shearPercent: 50, shearPercentEnabled: false }, // draggable point 5 on phase graph
+      position6: { angle1: 25, angle1Enabled: true, angle2: 25, angle2Enabled: true, angle3: 50, angle3Enabled: true, shearPercent: 50, shearPercentEnabled: false }, // draggable point 6 on phase graph
     },
 
     draggingPosition: null, // 'position1' | 'position2' | null
@@ -85,6 +85,7 @@
     targetAngle1: null,
     targetAngle2: null,
     targetAngle3: null,
+    targetShearPercent: null,  // Target for Shear mode animation
     maintainRatioStartAngle1: null,
     maintainRatioStartAngle2: null,
     sliderValue: 80,  // Initial slider value (80%)
@@ -102,6 +103,9 @@
     shearPercentMax: 100,  // Maximum shear percent
     personOffsetX: 30,  // Person's rotation point X offset from recline pivot
     personOffsetY: -80, // Person's rotation point Y offset from recline pivot
+    spineLength: 150,   // Length of person's spine
+    shearOffset: -20,   // Perpendicular offset of shear from recline
+    syncFunction: 'angle / 2',  // Custom function to calculate shear from recline angle
   };
 
   const layout = {
@@ -162,6 +166,8 @@
     shearReclineUp: { x: 160, y: 300, width: 60, height: 25, label: 'Recline ▶', group: 'Recline' },
     shearMemberDown: { x: 90, y: 300, width: 60, height: 25, label: '◀ Shear', group: 'Shear' },
     shearMemberUp: { x: 160, y: 300, width: 60, height: 25, label: 'Shear ▶', group: 'Shear' },
+    syncedDown: { x: 90, y: 340, width: 60, height: 25, label: '◀ Synced', group: 'Synced' },
+    syncedUp: { x: 160, y: 340, width: 60, height: 25, label: 'Synced ▶', group: 'Synced' },
   };
 
   // Canvas checkbox
@@ -638,8 +644,8 @@
     const shearProgress = (shearPercentClamped - state.shearPercentMin) / (state.shearPercentMax - state.shearPercentMin);
     const baseShearX = seatPanEndX + (reclineLength * shearProgress) * Math.cos(reclineAngleRad);
     const baseShearY = seatPanY - (reclineLength * shearProgress) * Math.sin(reclineAngleRad);
-    // Offset 20px perpendicular to recline (other side)
-    const shearOffset = -20;
+    // Offset perpendicular to recline (other side)
+    const shearOffset = state.shearOffset;
     const shearPosX = baseShearX + shearOffset * Math.sin(reclineAngleRad);
     const shearPosY = baseShearY + shearOffset * Math.cos(reclineAngleRad);
 
@@ -655,10 +661,9 @@
     const personPivotY = seatPanY + state.personOffsetY;
 
 
-
     // Capsule lengths (biomechanical proportions)
     const torsoLength = 120;
-    const legLength = 150;
+    const legLength = state.spineLength;
 
     // Seatpan-side capsule: horizontal, parallel to seatpan
     const seatpanCapsuleAngle = Math.PI; // Horizontal, facing left (180°)
@@ -700,8 +705,8 @@
       reclineAngleRad                   // recline angle
     );
 
-    var reclineCapsuleEndX = personPivotX + legLength * Math.cos(spineAngle);
-    var reclineCapsuleEndY = personPivotY + legLength * Math.sin(spineAngle);
+    var reclineCapsuleEndX = personPivotX + state.spineLength * Math.cos(spineAngle);
+    var reclineCapsuleEndY = personPivotY + state.spineLength * Math.sin(spineAngle);
 
     // Draw recline capsule (light gray)
     ctx.strokeStyle = '#CCCCCC';
@@ -712,15 +717,62 @@
     ctx.lineTo(reclineCapsuleEndX, reclineCapsuleEndY);
     ctx.stroke();
 
+    // Draw head capsule - parallel to recline from top of spine
+    const headLength = 160;  // Length of head capsule
+    const headEndX = reclineCapsuleEndX + headLength * Math.cos(reclineAngleRad);
+    const headEndY = reclineCapsuleEndY - headLength * Math.sin(reclineAngleRad);
+
+    ctx.strokeStyle = '#CCCCCC';
+    ctx.lineWidth = 75;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(reclineCapsuleEndX, reclineCapsuleEndY);
+    ctx.lineTo(headEndX, headEndY);
+    ctx.stroke();
+
+    // Draw ruler tickmarks along head capsule edge
+    const tickSpacing = 20;  // pixels between ticks
+    const tickLength = 10;   // length of tick marks
+    const headRadius = 75 / 2;  // half the line width
+
+    // Calculate perpendicular offset direction (perpendicular to head capsule direction)
+    const perpX = Math.sin(reclineAngleRad);  // perpendicular to the capsule direction
+    const perpY = Math.cos(reclineAngleRad);
+
+    // Draw ticks along the head capsule
+    for(let i = 0; i <= headLength; i += tickSpacing){
+      const progress = i / headLength;
+      const tickX = reclineCapsuleEndX + (headLength * progress) * Math.cos(reclineAngleRad);
+      const tickY = reclineCapsuleEndY - (headLength * progress) * Math.sin(reclineAngleRad);
+
+      // Outer tick (at the edge of the capsule)
+      const outerX = tickX + headRadius * perpX;
+      const outerY = tickY + headRadius * perpY;
+
+      // Inner tick (end of the tick mark, pointing inward)
+      const innerX = tickX + (headRadius - tickLength) * perpX;
+      const innerY = tickY + (headRadius - tickLength) * perpY;
+
+      ctx.strokeStyle = '#666';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(outerX, outerY);
+      ctx.lineTo(innerX, innerY);
+      ctx.stroke();
+    }
+
+    // Draw pivot point at top of spine (junction between spine and head)
+    ctx.fillStyle = '#666';
+    ctx.beginPath();
+    ctx.arc(reclineCapsuleEndX, reclineCapsuleEndY, 8, 0, 2 * Math.PI);
+    ctx.fill();
+
 
     // Draw person's rotation point as black circle
     ctx.fillStyle = '#000';
     ctx.beginPath();
     ctx.arc(personPivotX, personPivotY, 8, 0, 2 * Math.PI);
     ctx.fill();
-
-    // Draw offset sliders
-    drawPersonOffsetSliders();
 
     // Draw seatpan (horizontal line)
     ctx.strokeStyle = '#1976D2';
@@ -748,6 +800,38 @@
     ctx.lineTo(shearEndX, shearEndY);
     ctx.stroke();
 
+    // Draw tickmarks on shear member (like a ruler)
+    const tickSpacingShear = 20; // pixels between ticks
+    const tickLengthShear = 10; // length of each tick
+    const shearRadius = 5; // offset perpendicular to line
+
+    // Perpendicular direction to shear member (perpendicular offset)
+    const shearAngle = Math.atan2(shearEndY - shearPosY, shearEndX - shearPosX);
+    const shearPerpX = Math.sin(shearAngle);
+    const shearPerpY = -Math.cos(shearAngle);
+
+    // Draw ticks along the shear member
+    for(let i = 0; i <= shearMemberLength; i += tickSpacingShear){
+      const progress = i / shearMemberLength;
+      const tickX = shearPosX + (shearEndX - shearPosX) * progress;
+      const tickY = shearPosY + (shearEndY - shearPosY) * progress;
+
+      // Outer tick (at the edge of the line)
+      const outerX = tickX + shearRadius * shearPerpX;
+      const outerY = tickY + shearRadius * shearPerpY;
+
+      // Inner tick (end of the tick mark, pointing inward)
+      const innerX = tickX + (shearRadius - tickLengthShear) * shearPerpX;
+      const innerY = tickY + (shearRadius - tickLengthShear) * shearPerpY;
+
+      ctx.strokeStyle = '#666';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(outerX, outerY);
+      ctx.lineTo(innerX, innerY);
+      ctx.stroke();
+    }
+
     // Draw small circle at shear member pivot
     ctx.fillStyle = '#FFB300';
     ctx.beginPath();
@@ -765,7 +849,7 @@
   }
 
   function drawPersonOffsetSliders(){
-    const sliderY = config.basePivot.y + 150;
+    const sliderY = 320;  // Position below buttons (moved down for Synced buttons)
     const sliderX = 20;
     const sliderLength = 200;
     const sliderHeight = 15;
@@ -806,10 +890,46 @@
     // Y label
     ctx.fillText(`Offset Y: ${state.personOffsetY.toFixed(0)}`, sliderX, sliderY2 - 5);
 
+    // Spine length slider
+    const sliderY3 = sliderY2 + 35;
+    ctx.fillStyle = '#e0e0e0';
+    ctx.fillRect(sliderX, sliderY3, sliderLength, sliderHeight);
+    ctx.strokeStyle = '#999';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(sliderX, sliderY3, sliderLength, sliderHeight);
+
+    // Spine length handle (range 50-250)
+    const spineRatio = (state.spineLength - 50) / 200;
+    const spineHandleX = sliderX + spineRatio * sliderLength;
+    ctx.fillStyle = '#FF9800';
+    ctx.fillRect(spineHandleX - 5, sliderY3 - 2, 10, sliderHeight + 4);
+
+    // Spine length label
+    ctx.fillText(`Spine: ${state.spineLength.toFixed(0)}`, sliderX, sliderY3 - 5);
+
+    // Shear offset slider
+    const sliderY4 = sliderY3 + 35;
+    ctx.fillStyle = '#e0e0e0';
+    ctx.fillRect(sliderX, sliderY4, sliderLength, sliderHeight);
+    ctx.strokeStyle = '#999';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(sliderX, sliderY4, sliderLength, sliderHeight);
+
+    // Shear offset handle (range -50 to +50)
+    const shearOffsetRatio = (state.shearOffset + 50) / 100;
+    const shearOffsetHandleX = sliderX + shearOffsetRatio * sliderLength;
+    ctx.fillStyle = '#E91E63';
+    ctx.fillRect(shearOffsetHandleX - 5, sliderY4 - 2, 10, sliderHeight + 4);
+
+    // Shear offset label
+    ctx.fillText(`Shear Offset: ${state.shearOffset.toFixed(0)}`, sliderX, sliderY4 - 5);
+
     // Store slider rects for hit detection
     state.offsetSliders = {
       x: { x: sliderX, y: sliderY, width: sliderLength, height: sliderHeight, min: -100, max: 100, property: 'personOffsetX' },
-      y: { x: sliderX, y: sliderY2, width: sliderLength, height: sliderHeight, min: -150, max: 50, property: 'personOffsetY' }
+      y: { x: sliderX, y: sliderY2, width: sliderLength, height: sliderHeight, min: -150, max: 50, property: 'personOffsetY' },
+      spineLength: { x: sliderX, y: sliderY3, width: sliderLength, height: sliderHeight, min: 50, max: 250, property: 'spineLength' },
+      shearOffset: { x: sliderX, y: sliderY4, width: sliderLength, height: sliderHeight, min: -50, max: 50, property: 'shearOffset' }
     };
   }
 
@@ -1005,6 +1125,7 @@ function draw(){
     drawShear();
     drawShearText();
     drawShearPhaseGraph();
+    drawPersonOffsetSliders();
   }
 
   drawButtons();
@@ -1100,6 +1221,36 @@ function drawButtons(){
     shearMemberUpBtn.x = x + buttonSpacing;
     shearMemberUpBtn.y = y;
     drawButton(shearMemberUpBtn, state.buttonHeld === 'shearMemberUp', '#FF9800');
+
+    // Draw Position buttons
+    y += 40;
+    ctx.fillText('Positions', x - 8, y + 12.5);
+
+    const pos1Btn = buttons.pos1;
+    const pos2Btn = buttons.pos2;
+
+    pos1Btn.x = x;
+    pos1Btn.y = y;
+    drawButton(pos1Btn, false, pos1Btn.colour);
+
+    pos2Btn.x = x + buttonSpacing;
+    pos2Btn.y = y;
+    drawButton(pos2Btn, false, pos2Btn.colour);
+
+    // Draw Synced buttons
+    y += 40;
+    ctx.fillText('Synced', x - 8, y + 12.5);
+
+    const syncedDownBtn = buttons.syncedDown;
+    const syncedUpBtn = buttons.syncedUp;
+
+    syncedDownBtn.x = x;
+    syncedDownBtn.y = y;
+    drawButton(syncedDownBtn, state.buttonHeld === 'syncedDown', '#9C27B0');
+
+    syncedUpBtn.x = x + buttonSpacing;
+    syncedUpBtn.y = y;
+    drawButton(syncedUpBtn, state.buttonHeld === 'syncedUp', '#9C27B0');
 
     return;
   }
@@ -1730,6 +1881,33 @@ function drawShearPhaseGraph(){
       ctx.fill();
     }
   }
+
+  // Draw position markers on shear graph (recline angle vs shear percent)
+  if(state.positions.position1.angle3Enabled && state.positions.position1.shearPercentEnabled) {
+    const posScreen = dataToScreen(state.positions.position1.angle3, state.positions.position1.shearPercent);
+    if(posScreen.x >= plotX && posScreen.x <= plotX + plotWidth && posScreen.y >= plotY && posScreen.y <= plotY + plotHeight){
+      ctx.fillStyle = buttons.pos1.colour;
+      ctx.beginPath();
+      ctx.arc(posScreen.x, posScreen.y, 5, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  }
+
+  if(state.positions.position2.angle3Enabled && state.positions.position2.shearPercentEnabled) {
+    const posScreen = dataToScreen(state.positions.position2.angle3, state.positions.position2.shearPercent);
+    if(posScreen.x >= plotX && posScreen.x <= plotX + plotWidth && posScreen.y >= plotY && posScreen.y <= plotY + plotHeight){
+      ctx.fillStyle = buttons.pos2.colour;
+      ctx.beginPath();
+      ctx.arc(posScreen.x, posScreen.y, 5, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  }
 }
 
 function drawPhaseChart(){
@@ -2046,6 +2224,50 @@ function drawPhaseChart(){
       }
     }
 
+    // Apply smooth movement towards saved position in Shear mode
+    if(state.mode === 'shear' && state.movingTowards && (state.targetAngle3 !== null || state.targetShearPercent !== null)){
+      const speed = 0.5; // base increment per frame
+
+      // Initialize animation tracking on first frame
+      if(!state.animationStartAngle3){
+        state.animationStartAngle3 = state.angle3;
+        state.animationStartShearPercent = state.shearPercent;
+        state.animationElapsedFrames = 0;
+      }
+
+      state.animationElapsedFrames++;
+
+      let angle3Diff = state.targetAngle3 !== null ? state.targetAngle3 - state.animationStartAngle3 : 0;
+      let shearDiff = state.targetShearPercent !== null ? state.targetShearPercent - state.animationStartShearPercent : 0;
+      const maxDistance = Math.max(Math.abs(angle3Diff), Math.abs(shearDiff));
+
+      // Calculate how many frames needed to complete animation
+      const framesNeeded = Math.ceil(maxDistance / speed);
+      const progress = Math.min(state.animationElapsedFrames / framesNeeded, 1.0);
+
+      if(progress >= 1.0){
+        // Animation complete
+        if(state.targetAngle3 !== null) state.angle3 = state.targetAngle3;
+        if(state.targetShearPercent !== null) state.shearPercent = state.targetShearPercent;
+        state.movingTowards = null;
+        state.targetAngle3 = null;
+        state.targetShearPercent = null;
+        state.animationStartAngle3 = null;
+        state.animationStartShearPercent = null;
+        state.animationElapsedFrames = null;
+        updateDisplays();
+      } else {
+        // Interpolate between start and target using consistent progress
+        if(state.targetAngle3 !== null){
+          state.angle3 = state.animationStartAngle3 + (angle3Diff * progress);
+        }
+        if(state.targetShearPercent !== null){
+          state.shearPercent = state.animationStartShearPercent + (shearDiff * progress);
+        }
+        updateDisplays();
+      }
+    }
+
     draw();
     requestAnimationFrame(frameTimer);
   }
@@ -2085,6 +2307,28 @@ function drawPhaseChart(){
 
             if(Math.abs(newShear - state.shearPercent) > 0.01){
               state.shearPercent = newShear;
+              updateDisplays();
+            }
+          } else if(state.buttonHeld === 'syncedUp' || state.buttonHeld === 'syncedDown'){
+            const delta = state.buttonHeld === 'syncedUp' ? -0.4 : 0.4;
+            let newRecline = state.angle3 + delta;
+
+            // Constrain recline angle
+            const { min: angle3Min, max: angle3Max } = getAngle3Limits();
+            newRecline = Math.max(angle3Min, Math.min(angle3Max, newRecline));
+
+            if(Math.abs(newRecline - state.angle3) > 0.01){
+              state.angle3 = newRecline;
+              // Calculate synced shear using custom function
+              try {
+                const angle = d2r(state.angle3);
+                state.shearPercent = new Function('angle', 'return (' + state.syncFunction + ')')(angle);
+              } catch(e) {
+                console.error('Error evaluating sync function:', e);
+                state.shearPercent = state.angle3 / 2; // Fallback
+              }
+              // Constrain shear percent
+              state.shearPercent = Math.max(state.shearPercentMin, Math.min(state.shearPercentMax, state.shearPercent));
               updateDisplays();
             }
           }
@@ -2411,6 +2655,47 @@ function drawPhaseChart(){
           // Save to localStorage
           saveSettings();
         }
+      } else if(whichGraph === 'shear'){
+        // Dragging on shear graph (angle3 vs shearPercent)
+        const { min: reclineMin, max: reclineMax } = getAngle3Limits();
+        const reclineRange = reclineMax - reclineMin;
+        const reclineMarginMin = reclineMin - (reclineRange * 0.05);
+        const reclineMarginMax = reclineMax + (reclineRange * 0.05);
+        const reclineRangeWithMargin = reclineMarginMax - reclineMarginMin;
+        const shearMarginMin = state.shearPercentMin - 5;
+        const shearMarginMax = state.shearPercentMax + 5;
+        const shearRangeWithMargin = shearMarginMax - shearMarginMin;
+
+        const shearPlotX = canvas.clientWidth - 330;
+        const shearPlotY = 150;
+        const shearPlotWidth = 300;
+        const shearPlotHeight = 300;
+
+        const xRatio = (px - shearPlotX) / shearPlotWidth;
+        const yRatio = (shearPlotY + shearPlotHeight - py) / shearPlotHeight;
+        const newAngle3 = reclineMarginMin + (xRatio * reclineRangeWithMargin);
+        const newShearPercent = shearMarginMin + (yRatio * shearRangeWithMargin);
+
+        if(state.draggingPosition && state.positions[state.draggingPosition]){
+          const pos = state.positions[state.draggingPosition];
+          pos.angle3 = Math.max(reclineMin, Math.min(reclineMax, newAngle3));
+          pos.shearPercent = Math.max(state.shearPercentMin, Math.min(state.shearPercentMax, newShearPercent));
+
+          // Update hidden input elements if they exist
+          if(state.draggingPosition === 'position1'){
+            const pos1Angle3El = document.getElementById('pos1-angle3');
+            if(pos1Angle3El) pos1Angle3El.value = state.positions.position1.angle3.toFixed(1);
+          } else if(state.draggingPosition === 'position2'){
+            const pos2Angle3El = document.getElementById('pos2-angle3');
+            if(pos2Angle3El) pos2Angle3El.value = state.positions.position2.angle3.toFixed(1);
+          }
+
+          // Also update modal inputs if modal is visible
+          syncSettingsModal();
+
+          // Save to localStorage
+          saveSettings();
+        }
       }
 
       draw();
@@ -2498,13 +2783,28 @@ function drawPhaseChart(){
         state[slider.property] = newValue;
         saveSettings();
         canvas.style.cursor = 'grabbing';
+      } else if(state.dragging === 'personPivot'){
+        // Handle person pivot dragging
+        // Update person offsets based on mouse movement
+        state.personOffsetX = px - seatPanEndX;
+        state.personOffsetY = py - seatPanY;
+        saveSettings();
+        canvas.style.cursor = 'grabbing';
       } else {
         // Check for hover - check shear first so it takes priority
         const dRecline = pointToSegmentDistance(px, py, seatPanEndX, centerY, reclineEndX, reclineEndY);
         const dShear = pointToSegmentDistance(px, py, shearPosX, shearPosY, shearEndX, shearEndY);
 
+        // Calculate person pivot position
+        const personPivotX = seatPanEndX + state.personOffsetX;
+        const personPivotY = seatPanY + state.personOffsetY;
+        const dPersonPivot = Math.hypot(px - personPivotX, py - personPivotY);
+
         let hovering = null;
-        if(dShear < config.hoverThreshold){
+        if(dPersonPivot < 12){
+          hovering = 'personPivot';
+          canvas.style.cursor = 'grab';
+        } else if(dShear < config.hoverThreshold){
           hovering = 'shearMember';
           canvas.style.cursor = 'grab';
         } else if(dRecline < config.hoverThreshold){
@@ -2616,12 +2916,24 @@ function drawPhaseChart(){
       const baseShearClickX = seatPanEndX + (reclineLength * shearProgress) * Math.cos(reclineAngleRad);
       const baseShearClickY = seatPanY - (reclineLength * shearProgress) * Math.sin(reclineAngleRad);
       // Apply same perpendicular offset as drawing
-      const shearOffset = -20;
+      const shearOffset = state.shearOffset;
       const shearPosX = baseShearClickX + shearOffset * Math.sin(reclineAngleRad);
       const shearPosY = baseShearClickY + shearOffset * Math.cos(reclineAngleRad);
       const shearMemberLength = 80;
       const shearEndX = shearPosX + shearMemberLength * Math.cos(reclineAngleRad);
       const shearEndY = shearPosY - shearMemberLength * Math.sin(reclineAngleRad);
+
+      // Check person pivot
+      const personPivotX = seatPanEndX + state.personOffsetX;
+      const personPivotY = seatPanY + state.personOffsetY;
+      const dPersonPivot = Math.hypot(px - personPivotX, py - personPivotY);
+
+      if(dPersonPivot < 15){
+        state.dragging = 'personPivot';
+        canvas.setPointerCapture && canvas.setPointerCapture(evt.pointerId);
+        draw();
+        return;
+      }
 
       const dShear = pointToSegmentDistance(px, py, shearPosX, shearPosY, shearEndX, shearEndY);
 
@@ -2652,6 +2964,57 @@ function drawPhaseChart(){
             draw();
             return;
           }
+        }
+      }
+    }
+
+    // Check if clicking on position markers in shear phase graph (when in shear mode)
+    if(state.mode === 'shear'){
+      const { min: reclineMin, max: reclineMax } = getAngle3Limits();
+      const reclineRange = reclineMax - reclineMin;
+      const reclineMarginMin = reclineMin - (reclineRange * 0.05);
+      const reclineMarginMax = reclineMax + (reclineRange * 0.05);
+      const reclineRangeWithMargin = reclineMarginMax - reclineMarginMin;
+      const shearMarginMin = state.shearPercentMin - 5;
+      const shearMarginMax = state.shearPercentMax + 5;
+      const shearRangeWithMargin = shearMarginMax - shearMarginMin;
+
+      const shearPlotX = canvas.clientWidth - 330;
+      const shearPlotY = 150;
+      const shearPlotWidth = 300;
+      const shearPlotHeight = 300;
+
+      function shearDataToScreen(recline, shear){
+        const xRatio = (recline - reclineMarginMin) / reclineRangeWithMargin;
+        const x = shearPlotX + (xRatio * shearPlotWidth);
+        const yRatio = (shear - shearMarginMin) / shearRangeWithMargin;
+        const y = shearPlotY + shearPlotHeight - (yRatio * shearPlotHeight);
+        return { x, y };
+      }
+
+      // Check distance to position1 in shear graph
+      if(state.positions.position1.angle3Enabled && state.positions.position1.shearPercentEnabled){
+        const posScreen = shearDataToScreen(state.positions.position1.angle3, state.positions.position1.shearPercent);
+        const dist = Math.hypot(px - posScreen.x, py - posScreen.y);
+        if(dist < 10 && px >= shearPlotX && px <= shearPlotX + shearPlotWidth && py >= shearPlotY && py <= shearPlotY + shearPlotHeight){
+          state.draggingPosition = 'position1';
+          state.draggingGraph = 'shear';
+          canvas.setPointerCapture && canvas.setPointerCapture(evt.pointerId);
+          draw();
+          return;
+        }
+      }
+
+      // Check distance to position2 in shear graph
+      if(state.positions.position2.angle3Enabled && state.positions.position2.shearPercentEnabled){
+        const posScreen = shearDataToScreen(state.positions.position2.angle3, state.positions.position2.shearPercent);
+        const dist = Math.hypot(px - posScreen.x, py - posScreen.y);
+        if(dist < 10 && px >= shearPlotX && px <= shearPlotX + shearPlotWidth && py >= shearPlotY && py <= shearPlotY + shearPlotHeight){
+          state.draggingPosition = 'position2';
+          state.draggingGraph = 'shear';
+          canvas.setPointerCapture && canvas.setPointerCapture(evt.pointerId);
+          draw();
+          return;
         }
       }
     }
@@ -2774,8 +3137,10 @@ function drawPhaseChart(){
     // Check if a button was clicked
     const buttonClicked = getButtonAtPoint(px, py);
     if(buttonClicked){
-      // In Shear mode, only accept Shear-specific buttons
-      if(state.mode === 'shear' && !buttonClicked.startsWith('shear')){
+      console.log('Button clicked:', buttonClicked);
+      // In Shear mode, only accept Shear-specific buttons, position buttons, or synced buttons
+      if(state.mode === 'shear' && !buttonClicked.startsWith('shear') && !buttonClicked.startsWith('pos') && !buttonClicked.startsWith('synced')){
+        console.log('Button rejected in Shear mode:', buttonClicked);
         return;
       }
 
@@ -2800,17 +3165,40 @@ function drawPhaseChart(){
         joystick.isDragging = true;
         canvas.setPointerCapture && canvas.setPointerCapture(evt.pointerId);
         updateJoystickKnob(px, py);
-      } else if(buttonClicked.startsWith('pos') && state.positions[buttonClicked.replace('pos', 'position')]){
-        // Start animating towards the selected position
-        const positionName = buttonClicked.replace('pos', 'position');
-        const pos = state.positions[positionName];
-        state.movingTowards = positionName;
-        console.log(state.movingTowards);
-        // Only set target if angle is enabled
-        state.targetAngle1 = pos.angle1Enabled ? constrainAngle1(pos.angle1) : null;
-        state.targetAngle2 = pos.angle2Enabled ? constrainAngle2(pos.angle2) : null;
-        state.targetAngle3 = pos.angle3Enabled ? constrainAngle3(pos.angle3) : null;
+      } else if(buttonClicked === 'pos1' || buttonClicked === 'pos2'){
+        // Position button clicked
+        let positionName = null;
+        if(buttonClicked === 'pos1') positionName = 'position1';
+        else if(buttonClicked === 'pos2') positionName = 'position2';
+
+        if(positionName && state.positions[positionName]){
+          const pos = state.positions[positionName];
+
+          console.log('Position button clicked:', buttonClicked, 'Position name:', positionName);
+
+          if(state.mode === 'shear'){
+            // In Shear mode, animate towards the position
+            state.movingTowards = positionName;
+            state.targetAngle3 = pos.angle3Enabled ? constrainAngle3(pos.angle3) : null;
+            state.targetShearPercent = pos.shearPercentEnabled ? pos.shearPercent : null;
+            console.log('Set Shear animation targets - angle3:', state.targetAngle3, 'shearPercent:', state.targetShearPercent);
+            draw();
+          } else {
+            // In Z-frame mode, animate towards the position
+            state.movingTowards = positionName;
+            console.log(state.movingTowards);
+            // Only set target if angle is enabled
+            state.targetAngle1 = pos.angle1Enabled ? constrainAngle1(pos.angle1) : null;
+            state.targetAngle2 = pos.angle2Enabled ? constrainAngle2(pos.angle2) : null;
+            state.targetAngle3 = pos.angle3Enabled ? constrainAngle3(pos.angle3) : null;
+            draw();
+          }
+        }
+      } else if(buttonClicked === 'syncedUp' || buttonClicked === 'syncedDown'){
+        // Synced buttons - start holding
+        state.buttonHeld = buttonClicked;
         draw();
+        updateHeldButton();
       } else {
         state.buttonHeld = buttonClicked;
         draw();
@@ -2866,6 +3254,8 @@ function drawPhaseChart(){
         state.movingTowards = null;
         state.targetAngle1 = null;
         state.targetAngle2 = null;
+        state.targetAngle3 = null;
+        state.targetShearPercent = null;
       }
     }
 
@@ -2911,19 +3301,22 @@ function drawPhaseChart(){
       shearPercent: { min: shearPercentMinInput.value, max: shearPercentMaxInput.value, value: state.shearPercent },
       personOffsetX: state.personOffsetX,
       personOffsetY: state.personOffsetY,
+      spineLength: state.spineLength,
+      shearOffset: state.shearOffset,
       showGraph12: state.showGraph12,
       showGraph13: state.showGraph13,
       showGraph32: state.showGraph32,
       drawChair: state.drawChair,
       showOscilloscope: state.showOscilloscope,
       showSeatPanTrails: state.showSeatPanTrails,
+      syncFunction: state.syncFunction,
       positions: {
-        position1: { angle1: pos1Angle1Input.value, angle1Enabled: state.positions.position1.angle1Enabled, angle2: pos1Angle2Input.value, angle2Enabled: state.positions.position1.angle2Enabled, angle3: document.getElementById('pos1-angle3').value, angle3Enabled: state.positions.position1.angle3Enabled },
-        position2: { angle1: pos2Angle1Input.value, angle1Enabled: state.positions.position2.angle1Enabled, angle2: pos2Angle2Input.value, angle2Enabled: state.positions.position2.angle2Enabled, angle3: document.getElementById('pos2-angle3').value, angle3Enabled: state.positions.position2.angle3Enabled },
-        position3: { angle1: document.getElementById('pos3-angle1').value, angle1Enabled: state.positions.position3.angle1Enabled, angle2: document.getElementById('pos3-angle2').value, angle2Enabled: state.positions.position3.angle2Enabled, angle3: document.getElementById('pos3-angle3').value, angle3Enabled: state.positions.position3.angle3Enabled },
-        position4: { angle1: document.getElementById('pos4-angle1').value, angle1Enabled: state.positions.position4.angle1Enabled, angle2: document.getElementById('pos4-angle2').value, angle2Enabled: state.positions.position4.angle2Enabled, angle3: document.getElementById('pos4-angle3').value, angle3Enabled: state.positions.position4.angle3Enabled },
-        position5: { angle1: document.getElementById('pos5-angle1').value, angle1Enabled: state.positions.position5.angle1Enabled, angle2: document.getElementById('pos5-angle2').value, angle2Enabled: state.positions.position5.angle2Enabled, angle3: document.getElementById('pos5-angle3').value, angle3Enabled: state.positions.position5.angle3Enabled },
-        position6: { angle1: document.getElementById('pos6-angle1').value, angle1Enabled: state.positions.position6.angle1Enabled, angle2: document.getElementById('pos6-angle2').value, angle2Enabled: state.positions.position6.angle2Enabled, angle3: document.getElementById('pos6-angle3').value, angle3Enabled: state.positions.position6.angle3Enabled }
+        position1: { angle1: pos1Angle1Input.value, angle1Enabled: state.positions.position1.angle1Enabled, angle2: pos1Angle2Input.value, angle2Enabled: state.positions.position1.angle2Enabled, angle3: document.getElementById('pos1-angle3').value, angle3Enabled: state.positions.position1.angle3Enabled, shearPercent: state.positions.position1.shearPercent, shearPercentEnabled: state.positions.position1.shearPercentEnabled },
+        position2: { angle1: pos2Angle1Input.value, angle1Enabled: state.positions.position2.angle1Enabled, angle2: pos2Angle2Input.value, angle2Enabled: state.positions.position2.angle2Enabled, angle3: document.getElementById('pos2-angle3').value, angle3Enabled: state.positions.position2.angle3Enabled, shearPercent: state.positions.position2.shearPercent, shearPercentEnabled: state.positions.position2.shearPercentEnabled },
+        position3: { angle1: document.getElementById('pos3-angle1').value, angle1Enabled: state.positions.position3.angle1Enabled, angle2: document.getElementById('pos3-angle2').value, angle2Enabled: state.positions.position3.angle2Enabled, angle3: document.getElementById('pos3-angle3').value, angle3Enabled: state.positions.position3.angle3Enabled, shearPercent: state.positions.position3.shearPercent, shearPercentEnabled: state.positions.position3.shearPercentEnabled },
+        position4: { angle1: document.getElementById('pos4-angle1').value, angle1Enabled: state.positions.position4.angle1Enabled, angle2: document.getElementById('pos4-angle2').value, angle2Enabled: state.positions.position4.angle2Enabled, angle3: document.getElementById('pos4-angle3').value, angle3Enabled: state.positions.position4.angle3Enabled, shearPercent: state.positions.position4.shearPercent, shearPercentEnabled: state.positions.position4.shearPercentEnabled },
+        position5: { angle1: document.getElementById('pos5-angle1').value, angle1Enabled: state.positions.position5.angle1Enabled, angle2: document.getElementById('pos5-angle2').value, angle2Enabled: state.positions.position5.angle2Enabled, angle3: document.getElementById('pos5-angle3').value, angle3Enabled: state.positions.position5.angle3Enabled, shearPercent: state.positions.position5.shearPercent, shearPercentEnabled: state.positions.position5.shearPercentEnabled },
+        position6: { angle1: document.getElementById('pos6-angle1').value, angle1Enabled: state.positions.position6.angle1Enabled, angle2: document.getElementById('pos6-angle2').value, angle2Enabled: state.positions.position6.angle2Enabled, angle3: document.getElementById('pos6-angle3').value, angle3Enabled: state.positions.position6.angle3Enabled, shearPercent: state.positions.position6.shearPercent, shearPercentEnabled: state.positions.position6.shearPercentEnabled }
       }
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
@@ -2977,6 +3370,13 @@ function drawPhaseChart(){
         if (settings.personOffsetY !== undefined) {
           state.personOffsetY = settings.personOffsetY;
         }
+        if (settings.spineLength !== undefined) {
+          state.spineLength = settings.spineLength;
+        }
+        if (settings.shearOffset !== undefined) {
+          state.shearOffset = settings.shearOffset;
+        }
+        state.syncFunction = settings.syncFunction || 'angle / 2';
         state.showGraph12 = settings.showGraph12 !== undefined ? settings.showGraph12 : true;
         state.showGraph13 = settings.showGraph13 !== undefined ? settings.showGraph13 : true;
         state.showGraph32 = settings.showGraph32 !== undefined ? settings.showGraph32 : true;
@@ -3008,24 +3408,38 @@ function drawPhaseChart(){
           state.positions.position5.angle3 = parseFloat(settings.positions.position5.angle3) || 50;
           state.positions.position6.angle3 = parseFloat(settings.positions.position6.angle3) || 50;
 
+          // Load shearPercent and enabled states
+          state.positions.position1.shearPercent = parseFloat(settings.positions.position1.shearPercent) || 30;
+          state.positions.position2.shearPercent = parseFloat(settings.positions.position2.shearPercent) || 70;
+          state.positions.position3.shearPercent = parseFloat(settings.positions.position3.shearPercent) || 50;
+          state.positions.position4.shearPercent = parseFloat(settings.positions.position4.shearPercent) || 50;
+          state.positions.position5.shearPercent = parseFloat(settings.positions.position5.shearPercent) || 50;
+          state.positions.position6.shearPercent = parseFloat(settings.positions.position6.shearPercent) || 50;
+
           state.positions.position1.angle1Enabled = settings.positions.position1.angle1Enabled !== false;
           state.positions.position1.angle2Enabled = settings.positions.position1.angle2Enabled !== false;
           state.positions.position1.angle3Enabled = settings.positions.position1.angle3Enabled !== false;
+          state.positions.position1.shearPercentEnabled = settings.positions.position1.shearPercentEnabled !== false;
           state.positions.position2.angle1Enabled = settings.positions.position2.angle1Enabled !== false;
           state.positions.position2.angle2Enabled = settings.positions.position2.angle2Enabled !== false;
           state.positions.position2.angle3Enabled = settings.positions.position2.angle3Enabled !== false;
+          state.positions.position2.shearPercentEnabled = settings.positions.position2.shearPercentEnabled !== false;
           state.positions.position3.angle1Enabled = settings.positions.position3.angle1Enabled !== false;
           state.positions.position3.angle2Enabled = settings.positions.position3.angle2Enabled !== false;
           state.positions.position3.angle3Enabled = settings.positions.position3.angle3Enabled !== false;
+          state.positions.position3.shearPercentEnabled = settings.positions.position3.shearPercentEnabled !== false;
           state.positions.position4.angle1Enabled = settings.positions.position4.angle1Enabled !== false;
           state.positions.position4.angle2Enabled = settings.positions.position4.angle2Enabled !== false;
           state.positions.position4.angle3Enabled = settings.positions.position4.angle3Enabled !== false;
+          state.positions.position4.shearPercentEnabled = settings.positions.position4.shearPercentEnabled !== false;
           state.positions.position5.angle1Enabled = settings.positions.position5.angle1Enabled !== false;
           state.positions.position5.angle2Enabled = settings.positions.position5.angle2Enabled !== false;
           state.positions.position5.angle3Enabled = settings.positions.position5.angle3Enabled !== false;
+          state.positions.position5.shearPercentEnabled = settings.positions.position5.shearPercentEnabled !== false;
           state.positions.position6.angle1Enabled = settings.positions.position6.angle1Enabled !== false;
           state.positions.position6.angle2Enabled = settings.positions.position6.angle2Enabled !== false;
           state.positions.position6.angle3Enabled = settings.positions.position6.angle3Enabled !== false;
+          state.positions.position6.shearPercentEnabled = settings.positions.position6.shearPercentEnabled !== false;
         } else {
           // Use defaults if no positions in storage
           pos1Angle1Input.value = defaults.positions.position1.angle1;
@@ -3080,6 +3494,9 @@ function drawPhaseChart(){
     document.getElementById('settings-angle3-max').value = angle3MaxInput.value;
     document.getElementById('settings-shear-percent-min').value = shearPercentMinInput.value;
     document.getElementById('settings-shear-percent-max').value = shearPercentMaxInput.value;
+    document.getElementById('settings-sync-function').value = state.syncFunction;
+    const syncFunctionInput = document.getElementById('sync-function-input');
+    if(syncFunctionInput) syncFunctionInput.value = state.syncFunction;
     document.getElementById('settings-show-graph12').checked = state.showGraph12;
     document.getElementById('settings-show-graph13').checked = state.showGraph13;
     document.getElementById('settings-show-graph32').checked = state.showGraph32;
@@ -3136,6 +3553,7 @@ function drawPhaseChart(){
     shearPercentMaxInput.value = document.getElementById('settings-shear-percent-max').value;
     state.shearPercentMin = parseFloat(shearPercentMinInput.value) || 0;
     state.shearPercentMax = parseFloat(shearPercentMaxInput.value) || 100;
+    state.syncFunction = document.getElementById('settings-sync-function').value || 'angle / 2';
     state.showGraph12 = document.getElementById('settings-show-graph12').checked;
     state.showGraph13 = document.getElementById('settings-show-graph13').checked;
     state.showGraph32 = document.getElementById('settings-show-graph32').checked;
@@ -3405,17 +3823,20 @@ function drawPhaseChart(){
     const headerSubtitle = document.getElementById('header-subtitle');
     const modeZframeBtn = document.getElementById('mode-zframe');
     const modeShearBtn = document.getElementById('mode-shear');
+    const syncFunctionContainer = document.getElementById('sync-function-container');
 
     if(state.mode === 'zframe'){
       headerTitle.textContent = 'Z-frame Wheelchair Simulator';
       headerSubtitle.textContent = 'Drag the middle member (angle1) or the seat pan (angle2) to rotate about their pivots.';
       if(modeZframeBtn) modeZframeBtn.classList.add('mode-btn-active');
       if(modeShearBtn) modeShearBtn.classList.remove('mode-btn-active');
+      if(syncFunctionContainer) syncFunctionContainer.style.display = 'none';
     } else if(state.mode === 'shear'){
       headerTitle.textContent = 'Shear Wheelchair Simulator';
       headerSubtitle.textContent = 'Use the Recline buttons to adjust the backrest angle.';
       if(modeZframeBtn) modeZframeBtn.classList.remove('mode-btn-active');
       if(modeShearBtn) modeShearBtn.classList.add('mode-btn-active');
+      if(syncFunctionContainer) syncFunctionContainer.style.display = 'flex';
     }
   }
 
@@ -3446,6 +3867,18 @@ function drawPhaseChart(){
         updateModeUI();
         saveSettings();
         draw();
+      });
+    }
+
+    // Sync function input listener
+    const syncFunctionInput = document.getElementById('sync-function-input');
+    if(syncFunctionInput){
+      syncFunctionInput.addEventListener('change', () => {
+        state.syncFunction = syncFunctionInput.value || 'angle / 2';
+        saveSettings();
+      });
+      syncFunctionInput.addEventListener('input', () => {
+        state.syncFunction = syncFunctionInput.value || 'angle / 2';
       });
     }
 

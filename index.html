@@ -24,6 +24,10 @@
     <section class="controls">
       <button id="settings-btn" style="padding: 8px 16px; background-color: #2b7cff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">⚙️ Settings</button>
       <button id="clear-graph-btn" style="padding: 8px 16px; background-color: #ff6b6b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Clear Graph</button>
+      <div id="sync-function-container" style="display: none; align-items: center; gap: 8px;">
+        <label for="sync-function-input" style="font-weight: bold; font-size: 14px;">Sync Function:</label>
+        <input id="sync-function-input" type="text" placeholder="e.g., angle / 2, Math.sin(angle) * 50" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; width: 1000px;" />
+      </div>
     </section>
 
     <!-- Hidden input elements for configuration (managed by settings modal) -->
@@ -63,6 +67,9 @@
     <input type="hidden" id="pos6-angle2" value="25" />
     <input type="hidden" id="pos6-angle3" value="50" />
 
+    <!-- Custom Sync Function -->
+    <input type="hidden" id="sync-function" value="angle / 2" />
+
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal" style="display: none;">
       <div class="modal-content">
@@ -95,6 +102,12 @@
                 <strong>Shear Percent</strong><br/>
                 Min: <input id="settings-shear-percent-min" type="number" style="width: 80px;" />
                 Max: <input id="settings-shear-percent-max" type="number" style="width: 80px;" />
+              </label>
+
+              <label style="display: block; margin-bottom: 20px;">
+                <strong>Sync Function (Shear = f(angle))</strong><br/>
+                <input id="settings-sync-function" type="text" style="width: 100%; padding: 4px;" placeholder="e.g., angle / 2, Math.sin(angle) * 50" />
+                <small style="display: block; margin-top: 4px; color: #666;">Available: angle, Math.sin(), Math.cos(), Math.tan(), Math.abs()</small>
               </label>
             </div>
 
