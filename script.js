@@ -3328,9 +3328,11 @@ function drawPhaseChart(){
 
   // Settings Management - localStorage functions
   const STORAGE_KEY = 'z-frame-simulator-config';
+  const SETTINGS_VERSION = 2; // bump this when settings format changes
 
   function saveSettings() {
     const settings = {
+      version: SETTINGS_VERSION,
       mode: state.mode,
       angle1: { min: angle1MinInput.value, max: angle1MaxInput.value },
       angle2: { min: angle2MinInput.value, max: angle2MaxInput.value },
@@ -3378,6 +3380,12 @@ function drawPhaseChart(){
     if (stored) {
       try {
         const settings = JSON.parse(stored);
+        // If settings version is missing or older, reset to defaults to avoid incompatibilities
+        if (!settings.version || settings.version !== SETTINGS_VERSION) {
+          console.warn('Stored settings version mismatch (found:', settings.version, 'expected:', SETTINGS_VERSION, '). Resetting to defaults.');
+          resetToDefaults();
+          return;
+        }
         console.log('Parsed settings:', settings);
         if (settings.mode) {
           state.mode = settings.mode;
