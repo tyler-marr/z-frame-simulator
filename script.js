@@ -104,6 +104,7 @@
     personOffsetX: 30,  // Person's rotation point X offset from recline pivot
     personOffsetY: -80, // Person's rotation point Y offset from recline pivot
     spineLength: 150,   // Length of person's spine
+    personThickness: 5, // Approximate person thickness used in sync function (px)
     shearOffset: -20,   // Perpendicular offset of shear from recline
     syncFunction: 'angle / 2',  // Custom function to calculate shear from recline angle
   };
@@ -1851,8 +1852,39 @@ function drawShearPhaseGraph(){
     const y = plotY + plotHeight - (yRatio * plotHeight);
     return { x, y };
   }
+  // Draw the user-specified sync function curve (if available)
+  if(state.syncFunction){
+    try{
+      const fn = new Function('angle','x','y','L','T','C','return (' + state.syncFunction + ')');
+      const samples = 240; // smooth curve
+      ctx.strokeStyle = '#ADD8E6'; // light blue
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      let started = false;
+      for(let i = 0; i <= samples; i++){
+        const t = i / samples;
+        const recline = reclineMarginMin + t * (reclineMarginMax - reclineMarginMin);
+        const angle = d2r(recline);
+        const ox = state.personOffsetX;
+        const oy = state.personOffsetY;
+        const L = state.spineLength;
+        const T = state.shearOffset + state.personThickness;
+        const C = Math.hypot(ox, oy);
+        let shearVal = fn(angle, ox, oy, L, T, C);
+        if(typeof shearVal !== 'number' || !isFinite(shearVal)) continue;
+        // Constrain to allowed shear percent range
+        shearVal = Math.max(state.shearPercentMin, Math.min(state.shearPercentMax, shearVal));
+        const { x: sx, y: sy } = dataToScreen(recline, shearVal);
+        if(!started){ ctx.moveTo(sx, sy); started = true; }
+        else { ctx.lineTo(sx, sy); }
+      }
+      ctx.stroke();
+    } catch(e){
+      console.error('Error plotting sync function:', e);
+    }
+  }
 
-  // Draw data points as a line
+  // Draw recorded shear data points as an orange line
   ctx.strokeStyle = '#FF9800';
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -2320,9 +2352,14 @@ function drawPhaseChart(){
             if(Math.abs(newRecline - state.angle3) > 0.01){
               state.angle3 = newRecline;
               // Calculate synced shear using custom function
-              try {
+                try {
                 const angle = d2r(state.angle3);
-                state.shearPercent = new Function('angle', 'return (' + state.syncFunction + ')')(angle);
+                const x = state.personOffsetX;
+                const y = state.personOffsetY;
+                const L = state.spineLength;
+                const T = state.shearOffset + state.personThickness;
+                const C = Math.hypot(x, y);
+                state.shearPercent = new Function('angle','x','y','L','T','C','return (' + state.syncFunction + ')')(angle, x, y, L, T, C);
               } catch(e) {
                 console.error('Error evaluating sync function:', e);
                 state.shearPercent = state.angle3 / 2; // Fallback
