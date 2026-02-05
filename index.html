@@ -66,9 +66,15 @@
     <input type="hidden" id="pos6-angle1" value="25" />
     <input type="hidden" id="pos6-angle2" value="25" />
     <input type="hidden" id="pos6-angle3" value="50" />
+    <input type="hidden" id="pos7-angle1" value="30" />
+    <input type="hidden" id="pos7-angle2" value="30" />
+    <input type="hidden" id="pos7-angle3" value="50" />
+    <input type="hidden" id="pos8-angle1" value="35" />
+    <input type="hidden" id="pos8-angle2" value="35" />
+    <input type="hidden" id="pos8-angle3" value="50" />
 
     <!-- Custom Sync Function -->
-    <input type="hidden" id="sync-function" value="angle / 2" />
+    <input type="hidden" id="sync-function" value="C*Math.cos(p-angle)+Math.sqrt(L**2-(C*Math.sin(p-angle)-T)**2)+20" />
 
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal" style="display: none;">
@@ -107,7 +113,7 @@
               <label style="display: block; margin-bottom: 20px;">
                 <strong>Sync Function (Shear = f(angle))</strong><br/>
                 <input id="settings-sync-function" type="text" style="width: 100%; padding: 4px;" placeholder="e.g., angle / 2, Math.sin(angle) * 50" />
-                <small style="display: block; margin-top: 4px; color: #666;">Available: angle (radians), x, y, L, T, C, Math.sin(), Math.cos(), Math.tan(), Math.abs() — where x/y are person offsets, L is spine length, T = shearOffset + personThickness, C = sqrt(x*x + y*y)</small>
+                <small style="display: block; margin-top: 4px; color: #666;">Available: angle (radians), theta, p, x, y, L, T, C, Math.sin(), Math.cos(), Math.tan(), Math.abs(), atan() / arctan() — where x/y are person offsets, L is spine length, T = shearOffset + personThickness, C = sqrt(x*x + y*y), p = atan2(y,x) (angle of vector x,y), theta = π - angle - atan(y/x)</small>
               </label>
             </div>
 
@@ -161,6 +167,18 @@
                 <label>Angle1: <input id="settings-pos6-angle1" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos6-angle1-enabled" type="checkbox" checked /></label>
                 <label>Angle2: <input id="settings-pos6-angle2" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos6-angle2-enabled" type="checkbox" checked /></label>
                 <label>Angle3: <input id="settings-pos6-angle3" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos6-angle3-enabled" type="checkbox" checked /></label>
+              </div>
+              <div class="position-group">
+                <h4>Position 7</h4>
+                <label>Angle1: <input id="settings-pos7-angle1" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos7-angle1-enabled" type="checkbox" checked /></label>
+                <label>Angle2: <input id="settings-pos7-angle2" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos7-angle2-enabled" type="checkbox" checked /></label>
+                <label>Angle3: <input id="settings-pos7-angle3" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos7-angle3-enabled" type="checkbox" checked /></label>
+              </div>
+              <div class="position-group">
+                <h4>Position 8</h4>
+                <label>Angle1: <input id="settings-pos8-angle1" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos8-angle1-enabled" type="checkbox" checked /></label>
+                <label>Angle2: <input id="settings-pos8-angle2" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos8-angle2-enabled" type="checkbox" checked /></label>
+                <label>Angle3: <input id="settings-pos8-angle3" type="number" step="0.1" style="width: 60px;" /> <input id="settings-pos8-angle3-enabled" type="checkbox" checked /></label>
               </div>
             </div>
           </div>

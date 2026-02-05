@@ -78,6 +78,8 @@
       position4: { angle1: 15, angle1Enabled: true, angle2: 15, angle2Enabled: true, angle3: 50, angle3Enabled: true, shearPercent: 50, shearPercentEnabled: false }, // draggable point 4 on phase graph
       position5: { angle1: 20, angle1Enabled: true, angle2: 20, angle2Enabled: true, angle3: 50, angle3Enabled: true, shearPercent: 50, shearPercentEnabled: false }, // draggable point 5 on phase graph
       position6: { angle1: 25, angle1Enabled: true, angle2: 25, angle2Enabled: true, angle3: 50, angle3Enabled: true, shearPercent: 50, shearPercentEnabled: false }, // draggable point 6 on phase graph
+      position7: { angle1: 30, angle1Enabled: true, angle2: 30, angle2Enabled: true, angle3: 50, angle3Enabled: true, shearPercent: 50, shearPercentEnabled: false }, // draggable point 7 on phase graph
+      position8: { angle1: 35, angle1Enabled: true, angle2: 35, angle2Enabled: true, angle3: 50, angle3Enabled: true, shearPercent: 50, shearPercentEnabled: false }, // draggable point 8 on phase graph
     },
 
     draggingPosition: null, // 'position1' | 'position2' | null
@@ -101,12 +103,12 @@
     shearPercent: 50,   // Shear member position as percentage (0-100)
     shearPercentMin: 0,  // Minimum shear percent
     shearPercentMax: 100,  // Maximum shear percent
-    personOffsetX: 30,  // Person's rotation point X offset from recline pivot
-    personOffsetY: -80, // Person's rotation point Y offset from recline pivot
-    spineLength: 150,   // Length of person's spine
-    personThickness: 5, // Approximate person thickness used in sync function (px)
+    personOffsetX: -62,  // Person's rotation point X offset from recline pivot
+    personOffsetY: -48, // Person's rotation point Y offset from recline pivot
+    spineLength: 55,   // Length of person's spine
+    personThickness: 75, // Approximate person thickness used in sync function (px)
     shearOffset: -20,   // Perpendicular offset of shear from recline
-    syncFunction: 'angle / 2',  // Custom function to calculate shear from recline angle
+    syncFunction: 'C*Math.cos(p-angle)+Math.sqrt(L**2-(C*Math.sin(p-angle)-T)**2)+20',  // Custom function to calculate shear from recline angle
   };
 
   const layout = {
@@ -647,8 +649,8 @@
     const baseShearY = seatPanY - (reclineLength * shearProgress) * Math.sin(reclineAngleRad);
     // Offset perpendicular to recline (other side)
     const shearOffset = state.shearOffset;
-    const shearPosX = baseShearX + shearOffset * Math.sin(reclineAngleRad);
-    const shearPosY = baseShearY + shearOffset * Math.cos(reclineAngleRad);
+    const shearPosX = baseShearX + (shearOffset) * Math.sin(reclineAngleRad);
+    const shearPosY = baseShearY + (shearOffset) * Math.cos(reclineAngleRad);
 
     // Shear member length
     const shearMemberLength = 80;
@@ -673,7 +675,7 @@
 
     // Draw seatpan capsule (light gray)
     ctx.strokeStyle = '#CCCCCC';
-    ctx.lineWidth = 75;
+    ctx.lineWidth = state.personThickness;
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(personPivotX, personPivotY);
@@ -701,8 +703,8 @@
       state.personOffsetX,
       -state.personOffsetY,             // person's pivot point
       legLength,                        // spine length
-      75/2.0,                           // spine thickness (75px line width / 2)
-      (shearOffset - 5),                      // shearThickness
+      state.personThickness/2.0,        // spine thickness (state.personThickness line width / 2)
+      (shearOffset - 5),                // shearThickness
       reclineAngleRad                   // recline angle
     );
 
@@ -711,7 +713,7 @@
 
     // Draw recline capsule (light gray)
     ctx.strokeStyle = '#CCCCCC';
-    ctx.lineWidth = 75;
+    ctx.lineWidth = state.personThickness;
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(personPivotX, personPivotY);
@@ -724,7 +726,7 @@
     const headEndY = reclineCapsuleEndY - headLength * Math.sin(reclineAngleRad);
 
     ctx.strokeStyle = '#CCCCCC';
-    ctx.lineWidth = 75;
+    ctx.lineWidth = state.personThickness;
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(reclineCapsuleEndX, reclineCapsuleEndY);
@@ -734,7 +736,7 @@
     // Draw ruler tickmarks along head capsule edge
     const tickSpacing = 20;  // pixels between ticks
     const tickLength = 10;   // length of tick marks
-    const headRadius = 75 / 2;  // half the line width
+    const headRadius = state.personThickness / 2;  // half the line width
 
     // Calculate perpendicular offset direction (perpendicular to head capsule direction)
     const perpX = Math.sin(reclineAngleRad);  // perpendicular to the capsule direction
@@ -899,8 +901,8 @@
     ctx.lineWidth = 1;
     ctx.strokeRect(sliderX, sliderY3, sliderLength, sliderHeight);
 
-    // Spine length handle (range 50-250)
-    const spineRatio = (state.spineLength - 50) / 200;
+    // Spine length handle (range 30-130)
+    const spineRatio = (state.spineLength - 30) / 100;
     const spineHandleX = sliderX + spineRatio * sliderLength;
     ctx.fillStyle = '#FF9800';
     ctx.fillRect(spineHandleX - 5, sliderY3 - 2, 10, sliderHeight + 4);
@@ -929,7 +931,7 @@
     state.offsetSliders = {
       x: { x: sliderX, y: sliderY, width: sliderLength, height: sliderHeight, min: -100, max: 100, property: 'personOffsetX' },
       y: { x: sliderX, y: sliderY2, width: sliderLength, height: sliderHeight, min: -150, max: 50, property: 'personOffsetY' },
-      spineLength: { x: sliderX, y: sliderY3, width: sliderLength, height: sliderHeight, min: 50, max: 250, property: 'spineLength' },
+      spineLength: { x: sliderX, y: sliderY3, width: sliderLength, height: sliderHeight, min: 30, max: 130, property: 'spineLength' },
       shearOffset: { x: sliderX, y: sliderY4, width: sliderLength, height: sliderHeight, min: -50, max: 50, property: 'shearOffset' }
     };
   }
@@ -939,10 +941,19 @@
     ctx.font = 'bold 18px system-ui,Segoe UI,Roboto,Arial';
     ctx.textAlign = 'left';
 
-    const startY = 50;
+    const offsetLength = Math.sqrt(state.personOffsetX**2 + state.personOffsetY**2);
+    let offsetAngle = r2d(Math.atan(state.personOffsetY/state.personOffsetX));
+    // if (offsetAngle < 0)
+    // {
+      offsetAngle + 180;
+    // }
+
+    const startY = 40;
     const shearPercentClamped = Math.max(state.shearPercentMin, Math.min(state.shearPercentMax, state.shearPercent));
     ctx.fillText(`Recline Angle: ${roundHalfDegree(state.angle3)}°`, 20, startY);
     ctx.fillText(`Shear: ${Math.round(shearPercentClamped)}%`, 20, startY + 30);
+    ctx.fillText(`Pivot Offset: (${Math.round(state.personOffsetX)},${Math.round(state.personOffsetY)})`, 20, startY + 60);
+    ctx.fillText(`Pivot Polar: (${Math.round(offsetLength)},${Math.round(offsetAngle)}°)`, 20, startY + 90);
   }
 
   function drawZBase(){
@@ -1855,7 +1866,11 @@ function drawShearPhaseGraph(){
   // Draw the user-specified sync function curve (if available)
   if(state.syncFunction){
     try{
-      const fn = new Function('angle','x','y','L','T','C','return (' + state.syncFunction + ')');
+      // Expose shorthand atan/arctan (both mapping to Math.atan) for convenience
+      // Compute theta = pi - angle - atan(y/x) (use atan2 for numerical robustness)
+      
+      // Expose theta and shorthand atan/arctan (both mapping to Math.atan) for convenience
+      const fn = new Function('angle','x','y','L','T','C','p','theta','atan','arctan','return (' + state.syncFunction + ')');
       const samples = 240; // smooth curve
       ctx.strokeStyle = '#ADD8E6'; // light blue
       ctx.lineWidth = 2;
@@ -1868,9 +1883,11 @@ function drawShearPhaseGraph(){
         const ox = state.personOffsetX;
         const oy = state.personOffsetY;
         const L = state.spineLength;
-        const T = state.shearOffset + state.personThickness;
+        const T = -state.shearOffset + (state.personThickness/2) + 5;
         const C = Math.hypot(ox, oy);
-        let shearVal = fn(angle, ox, oy, L, T, C);
+        const p = Math.atan2(-oy, ox);
+        const theta = Math.PI - angle - p; // theta = pi - angle - atan(y/x)
+        let shearVal = fn(angle, ox, oy, L, T, C, p, theta, Math.atan, Math.atan);
         if(typeof shearVal !== 'number' || !isFinite(shearVal)) continue;
         // Constrain to allowed shear percent range
         shearVal = Math.max(state.shearPercentMin, Math.min(state.shearPercentMax, shearVal));
@@ -2357,9 +2374,13 @@ function drawPhaseChart(){
                 const x = state.personOffsetX;
                 const y = state.personOffsetY;
                 const L = state.spineLength;
-                const T = state.shearOffset + state.personThickness;
+                const T = -state.shearOffset + (state.personThickness/2) +5;
                 const C = Math.hypot(x, y);
-                state.shearPercent = new Function('angle','x','y','L','T','C','return (' + state.syncFunction + ')')(angle, x, y, L, T, C);
+                // Compute p = atan2(y,x) (angle of vector (x,y)) and theta = pi - angle - p
+                const p = Math.atan2(-y, x);
+                const theta = Math.PI - angle - p;
+                // Allow atan/arctan shorthand in sync function and expose p and theta
+                state.shearPercent = new Function('angle','x','y','L','T','C','p','theta','atan','arctan','return (' + state.syncFunction + ')')(angle, x, y, L, T, C, p, theta, Math.atan, Math.atan);
               } catch(e) {
                 console.error('Error evaluating sync function:', e);
                 state.shearPercent = state.angle3 / 2; // Fallback
@@ -3328,7 +3349,7 @@ function drawPhaseChart(){
 
   // Settings Management - localStorage functions
   const STORAGE_KEY = 'z-frame-simulator-config';
-  const SETTINGS_VERSION = 2; // bump this when settings format changes
+  const SETTINGS_VERSION = 3; // bumped to force reloads after settings format changes
 
   function saveSettings() {
     const settings = {
@@ -3355,7 +3376,9 @@ function drawPhaseChart(){
         position3: { angle1: document.getElementById('pos3-angle1').value, angle1Enabled: state.positions.position3.angle1Enabled, angle2: document.getElementById('pos3-angle2').value, angle2Enabled: state.positions.position3.angle2Enabled, angle3: document.getElementById('pos3-angle3').value, angle3Enabled: state.positions.position3.angle3Enabled, shearPercent: state.positions.position3.shearPercent, shearPercentEnabled: state.positions.position3.shearPercentEnabled },
         position4: { angle1: document.getElementById('pos4-angle1').value, angle1Enabled: state.positions.position4.angle1Enabled, angle2: document.getElementById('pos4-angle2').value, angle2Enabled: state.positions.position4.angle2Enabled, angle3: document.getElementById('pos4-angle3').value, angle3Enabled: state.positions.position4.angle3Enabled, shearPercent: state.positions.position4.shearPercent, shearPercentEnabled: state.positions.position4.shearPercentEnabled },
         position5: { angle1: document.getElementById('pos5-angle1').value, angle1Enabled: state.positions.position5.angle1Enabled, angle2: document.getElementById('pos5-angle2').value, angle2Enabled: state.positions.position5.angle2Enabled, angle3: document.getElementById('pos5-angle3').value, angle3Enabled: state.positions.position5.angle3Enabled, shearPercent: state.positions.position5.shearPercent, shearPercentEnabled: state.positions.position5.shearPercentEnabled },
-        position6: { angle1: document.getElementById('pos6-angle1').value, angle1Enabled: state.positions.position6.angle1Enabled, angle2: document.getElementById('pos6-angle2').value, angle2Enabled: state.positions.position6.angle2Enabled, angle3: document.getElementById('pos6-angle3').value, angle3Enabled: state.positions.position6.angle3Enabled, shearPercent: state.positions.position6.shearPercent, shearPercentEnabled: state.positions.position6.shearPercentEnabled }
+        position6: { angle1: document.getElementById('pos6-angle1').value, angle1Enabled: state.positions.position6.angle1Enabled, angle2: document.getElementById('pos6-angle2').value, angle2Enabled: state.positions.position6.angle2Enabled, angle3: document.getElementById('pos6-angle3').value, angle3Enabled: state.positions.position6.angle3Enabled, shearPercent: state.positions.position6.shearPercent, shearPercentEnabled: state.positions.position6.shearPercentEnabled },
+        position7: { angle1: document.getElementById('pos7-angle1').value, angle1Enabled: state.positions.position7.angle1Enabled, angle2: document.getElementById('pos7-angle2').value, angle2Enabled: state.positions.position7.angle2Enabled, angle3: document.getElementById('pos7-angle3').value, angle3Enabled: state.positions.position7.angle3Enabled, shearPercent: state.positions.position7.shearPercent, shearPercentEnabled: state.positions.position7.shearPercentEnabled },
+        position8: { angle1: document.getElementById('pos8-angle1').value, angle1Enabled: state.positions.position8.angle1Enabled, angle2: document.getElementById('pos8-angle2').value, angle2Enabled: state.positions.position8.angle2Enabled, angle3: document.getElementById('pos8-angle3').value, angle3Enabled: state.positions.position8.angle3Enabled, shearPercent: state.positions.position8.shearPercent, shearPercentEnabled: state.positions.position8.shearPercentEnabled }
       }
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
@@ -3374,7 +3397,9 @@ function drawPhaseChart(){
         position3: { angle1: '10', angle2: '10', angle3: '50' },
         position4: { angle1: '15', angle2: '15', angle3: '50' },
         position5: { angle1: '20', angle2: '20', angle3: '50' },
-        position6: { angle1: '25', angle2: '25', angle3: '50' }
+        position6: { angle1: '25', angle2: '25', angle3: '50' },
+        position7: { angle1: '30', angle2: '30', angle3: '50' },
+        position8: { angle1: '35', angle2: '35', angle3: '50' }
       }
     };
     if (stored) {
@@ -3421,7 +3446,7 @@ function drawPhaseChart(){
         if (settings.shearOffset !== undefined) {
           state.shearOffset = settings.shearOffset;
         }
-        state.syncFunction = settings.syncFunction || 'angle / 2';
+        state.syncFunction = settings.syncFunction || 'C*Math.cos(p-angle)+Math.sqrt(L**2-(C*Math.sin(p-angle)-T)**2)+20';
         state.showGraph12 = settings.showGraph12 !== undefined ? settings.showGraph12 : true;
         state.showGraph13 = settings.showGraph13 !== undefined ? settings.showGraph13 : true;
         state.showGraph32 = settings.showGraph32 !== undefined ? settings.showGraph32 : true;
@@ -3444,6 +3469,10 @@ function drawPhaseChart(){
           document.getElementById('pos5-angle2').value = settings.positions.position5.angle2;
           document.getElementById('pos6-angle1').value = settings.positions.position6.angle1;
           document.getElementById('pos6-angle2').value = settings.positions.position6.angle2;
+          document.getElementById('pos7-angle1').value = settings.positions.position7 ? settings.positions.position7.angle1 : defaults.positions.position7.angle1;
+          document.getElementById('pos7-angle2').value = settings.positions.position7 ? settings.positions.position7.angle2 : defaults.positions.position7.angle2;
+          document.getElementById('pos8-angle1').value = settings.positions.position8 ? settings.positions.position8.angle1 : defaults.positions.position8.angle1;
+          document.getElementById('pos8-angle2').value = settings.positions.position8 ? settings.positions.position8.angle2 : defaults.positions.position8.angle2;
 
           // Load angle3 and enabled states
           state.positions.position1.angle3 = parseFloat(settings.positions.position1.angle3) || 50;
@@ -3452,6 +3481,8 @@ function drawPhaseChart(){
           state.positions.position4.angle3 = parseFloat(settings.positions.position4.angle3) || 50;
           state.positions.position5.angle3 = parseFloat(settings.positions.position5.angle3) || 50;
           state.positions.position6.angle3 = parseFloat(settings.positions.position6.angle3) || 50;
+          state.positions.position7.angle3 = parseFloat(settings.positions.position7 ? settings.positions.position7.angle3 : defaults.positions.position7.angle3) || 50;
+          state.positions.position8.angle3 = parseFloat(settings.positions.position8 ? settings.positions.position8.angle3 : defaults.positions.position8.angle3) || 50;
 
           // Load shearPercent and enabled states
           state.positions.position1.shearPercent = parseFloat(settings.positions.position1.shearPercent) || 30;
@@ -3460,6 +3491,8 @@ function drawPhaseChart(){
           state.positions.position4.shearPercent = parseFloat(settings.positions.position4.shearPercent) || 50;
           state.positions.position5.shearPercent = parseFloat(settings.positions.position5.shearPercent) || 50;
           state.positions.position6.shearPercent = parseFloat(settings.positions.position6.shearPercent) || 50;
+          state.positions.position7.shearPercent = parseFloat(settings.positions.position7 ? settings.positions.position7.shearPercent : state.positions.position7.shearPercent) || 50;
+          state.positions.position8.shearPercent = parseFloat(settings.positions.position8 ? settings.positions.position8.shearPercent : state.positions.position8.shearPercent) || 50;
 
           state.positions.position1.angle1Enabled = settings.positions.position1.angle1Enabled !== false;
           state.positions.position1.angle2Enabled = settings.positions.position1.angle2Enabled !== false;
@@ -3513,6 +3546,10 @@ function drawPhaseChart(){
         state.positions.position5.angle2 = parseFloat(document.getElementById('pos5-angle2').value);
         state.positions.position6.angle1 = parseFloat(document.getElementById('pos6-angle1').value);
         state.positions.position6.angle2 = parseFloat(document.getElementById('pos6-angle2').value);
+          state.positions.position7.angle1 = parseFloat(document.getElementById('pos7-angle1').value);
+          state.positions.position7.angle2 = parseFloat(document.getElementById('pos7-angle2').value);
+          state.positions.position8.angle1 = parseFloat(document.getElementById('pos8-angle1').value);
+          state.positions.position8.angle2 = parseFloat(document.getElementById('pos8-angle2').value);
       } catch (e) {
         console.error('Error loading settings:', e);
       }
@@ -3598,7 +3635,7 @@ function drawPhaseChart(){
     shearPercentMaxInput.value = document.getElementById('settings-shear-percent-max').value;
     state.shearPercentMin = parseFloat(shearPercentMinInput.value) || 0;
     state.shearPercentMax = parseFloat(shearPercentMaxInput.value) || 100;
-    state.syncFunction = document.getElementById('settings-sync-function').value || 'angle / 2';
+    state.syncFunction = document.getElementById('settings-sync-function').value || 'C*Math.cos(p-angle)+Math.sqrt(L**2-(C*Math.sin(p-angle)-T)**2)+20';
     state.showGraph12 = document.getElementById('settings-show-graph12').checked;
     state.showGraph13 = document.getElementById('settings-show-graph13').checked;
     state.showGraph32 = document.getElementById('settings-show-graph32').checked;
@@ -3716,6 +3753,17 @@ function drawPhaseChart(){
     state.showOscilloscope = false;
     state.showSeatPanTrails = false;
 
+    // Reset biomechanical defaults
+    state.personOffsetX = -62;
+    state.personOffsetY = -48;
+    state.spineLength = 55;
+
+    // Reset sync function to default formula
+    const defaultSync = 'C*Math.cos(p-angle)+Math.sqrt(L**2-(C*Math.sin(p-angle)-T)**2)+20';
+    state.syncFunction = defaultSync;
+    const syncHidden = document.getElementById('sync-function');
+    if (syncHidden) syncHidden.value = defaultSync;
+
     syncSettingsModal();
     saveSettings();
   }
@@ -3762,7 +3810,9 @@ function drawPhaseChart(){
       'settings-pos3-angle1', 'settings-pos3-angle2', 'settings-pos3-angle3',
       'settings-pos4-angle1', 'settings-pos4-angle2', 'settings-pos4-angle3',
       'settings-pos5-angle1', 'settings-pos5-angle2', 'settings-pos5-angle3',
-      'settings-pos6-angle1', 'settings-pos6-angle2', 'settings-pos6-angle3'
+      'settings-pos6-angle1', 'settings-pos6-angle2', 'settings-pos6-angle3',
+      'settings-pos7-angle1', 'settings-pos7-angle2', 'settings-pos7-angle3',
+      'settings-pos8-angle1', 'settings-pos8-angle2', 'settings-pos8-angle3'
     ];
 
     positionInputIds.forEach(id => {
@@ -3790,7 +3840,9 @@ function drawPhaseChart(){
       'settings-pos3-angle1-enabled', 'settings-pos3-angle2-enabled', 'settings-pos3-angle3-enabled',
       'settings-pos4-angle1-enabled', 'settings-pos4-angle2-enabled', 'settings-pos4-angle3-enabled',
       'settings-pos5-angle1-enabled', 'settings-pos5-angle2-enabled', 'settings-pos5-angle3-enabled',
-      'settings-pos6-angle1-enabled', 'settings-pos6-angle2-enabled', 'settings-pos6-angle3-enabled'
+      'settings-pos6-angle1-enabled', 'settings-pos6-angle2-enabled', 'settings-pos6-angle3-enabled',
+      'settings-pos7-angle1-enabled', 'settings-pos7-angle2-enabled', 'settings-pos7-angle3-enabled',
+      'settings-pos8-angle1-enabled', 'settings-pos8-angle2-enabled', 'settings-pos8-angle3-enabled'
     ];
 
     enabledCheckboxIds.forEach(id => {
@@ -3919,7 +3971,7 @@ function drawPhaseChart(){
     const syncFunctionInput = document.getElementById('sync-function-input');
     if(syncFunctionInput){
       syncFunctionInput.addEventListener('change', () => {
-        state.syncFunction = syncFunctionInput.value || 'angle / 2';
+        state.syncFunction = syncFunctionInput.value || 'C*Math.cos(p-angle)+Math.sqrt(L**2-(C*Math.sin(p-angle)-T)**2)+20';
         saveSettings();
       });
       syncFunctionInput.addEventListener('input', () => {
